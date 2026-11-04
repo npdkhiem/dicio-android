@@ -23,7 +23,7 @@ plugins {
     // this code is duplicate with the below but there is no way to avoid it...
     fun findInVersionCatalog(versionIdentifier: String): String {
         val regex = "^.*$versionIdentifier *= *\"([^\"]+)\".*$".toRegex()
-        return File("gradle/libs.versions.toml")
+        return File(settingsDir, "gradle/libs.versions.toml")
             .readLines()
             .firstNotNullOf { regex.find(it)?.groupValues?.get(1) }
     }
@@ -56,7 +56,7 @@ data class IncludeGitRepo(
 // this code is duplicate with the above but there is no way to avoid it...
 fun findInVersionCatalog(versionIdentifier: String): String {
     val regex = "^.*$versionIdentifier *= *\"([^\"]+)\".*$".toRegex()
-    return File("gradle/libs.versions.toml")
+    return File(settingsDir, "gradle/libs.versions.toml")
         .readLines()
         .firstNotNullOf { regex.find(it)?.groupValues?.get(1) }
 }
