@@ -7,8 +7,9 @@
 # "play next from my music" / "play last from my phone" is the second
 # play_song line: it searches for a song named next/last. It is not a skip.
 #
-# Stop-music phrases live on MediaSkill (en/media.yml), which has no storage
-# permission. Repeat stays here and is still permission-gated.
+# Stop-music phrases live on MediaSkill (en/media.yml), including "turn off
+# the music" and "turn the music off". That skill has no storage permission.
+# Repeat stays here and is still permission-gated.
 next:
   - play the? next|following (song|track|music|media|audio|one)?
 

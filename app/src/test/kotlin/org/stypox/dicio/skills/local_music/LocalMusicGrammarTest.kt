@@ -7,9 +7,12 @@ import io.kotest.matchers.floats.shouldBeGreaterThan
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import org.dicio.skill.standard.StandardRecognizerData
 import org.dicio.skill.standard.StandardScore
 import org.dicio.skill.standard.util.MatchHelper
 import org.stypox.dicio.sentences.Sentences
+import org.stypox.dicio.sentences.Sentences.Flashlight
+import org.stypox.dicio.sentences.Sentences.Listening
 import org.stypox.dicio.sentences.Sentences.LocalMusic
 import org.stypox.dicio.sentences.Sentences.Media
 import org.stypox.dicio.skills.local_music.LocalMusicRouting.Command
@@ -83,6 +86,14 @@ class LocalMusicGrammarTest : StringSpec({
         "'$input' is previous, never play-by-name" { assertControl(input, Command.Previous) }
     }
 
+    fun highScore(
+        data: StandardRecognizerData<*>?,
+        input: String,
+    ): StandardScore {
+        data.shouldNotBeNull()
+        return data.score(MatchHelper(null, input), input).first
+    }
+
     fun assertMediaStop(input: String) {
         val scored = score(input)
         withClue(
@@ -93,6 +104,8 @@ class LocalMusicGrammarTest : StringSpec({
             scored.mediaCommand shouldBe Command.StopMusic
             scored.mediaScore.isBetterThan(scored.localScore).shouldBeTrue()
             scored.mediaScore.scoreIn01Range().shouldBeGreaterThan(0.85f)
+            scored.mediaScore.isBetterThan(highScore(Sentences.Flashlight["en"], input)).shouldBeTrue()
+            scored.mediaScore.isBetterThan(highScore(Sentences.Listening["en"], input)).shouldBeTrue()
         }
     }
 
@@ -106,8 +119,73 @@ class LocalMusicGrammarTest : StringSpec({
         "stop playing my local music",
         "stop local music",
         "stop the local music",
+        "turn off the music",
+        "turn the music off",
+        "switch off the music",
+        "switch the music off",
+        "turn off my music",
+        "turn my music off",
+        "please turn off the music",
+        "turn the music off please",
+        "please stop the music",
+        "stop the music please",
+        "ok stop the music",
+        "stop the music now",
     ).forEach { input ->
         "'$input' is stop-music and MediaSkill wins" { assertMediaStop(input) }
+    }
+
+    fun assertMediaPause(input: String) {
+        val scored = score(input)
+        withClue(
+            "media=${scored.media} (${scored.mediaScore.score()}/${scored.mediaScore.scoreIn01Range()}) " +
+                "local=${scored.local} (${scored.localScore.score()}/${scored.localScore.scoreIn01Range()})"
+        ) {
+            scored.media.shouldBeInstanceOf<Media.Pause>()
+            scored.mediaCommand shouldBe Command.Pause
+            scored.mediaScore.isBetterThan(scored.localScore).shouldBeTrue()
+            scored.mediaScore.scoreIn01Range().shouldBeGreaterThan(0.85f)
+        }
+    }
+
+    listOf(
+        "turn off the song",
+        "turn the song off",
+        "switch off the track",
+        "turn the track off",
+        "switch off the playback",
+        "turn the playback off",
+        "please stop the song",
+    ).forEach { input ->
+        "'$input' pauses and does not search for a song" { assertMediaPause(input) }
+    }
+
+    "turn off the light stays the flashlight" {
+        val input = "turn off the light"
+        val flash = Sentences.Flashlight["en"].shouldNotBeNull()
+        val (flashScore, flashSentence) = flash.score(MatchHelper(null, input), input)
+        flashSentence.shouldBeInstanceOf<Flashlight.TurnOff>()
+        flashScore.scoreIn01Range().shouldBeGreaterThan(0.85f)
+        val (mediaScore, _) = mediaData.score(MatchHelper(null, input), input)
+        flashScore.isBetterThan(mediaScore).shouldBeTrue()
+    }
+
+    "turn the flashlight off stays the flashlight" {
+        val input = "turn the flashlight off"
+        val flash = Sentences.Flashlight["en"].shouldNotBeNull()
+        val (flashScore, flashSentence) = flash.score(MatchHelper(null, input), input)
+        flashSentence.shouldBeInstanceOf<Flashlight.TurnOff>()
+        flashScore.isBetterThan(mediaData.score(MatchHelper(null, input), input).first).shouldBeTrue()
+    }
+
+    "turn off the microphone stays listening" {
+        val input = "turn off the microphone"
+        val listening = Sentences.Listening["en"].shouldNotBeNull()
+        val (listeningScore, listeningSentence) = listening.score(MatchHelper(null, input), input)
+        listeningSentence.shouldBeInstanceOf<Listening.Stop>()
+        listeningScore.scoreIn01Range().shouldBeGreaterThan(0.85f)
+        val (mediaScore, _) = mediaData.score(MatchHelper(null, input), input)
+        listeningScore.isBetterThan(mediaScore).shouldBeTrue()
     }
 
     "'stop the song' stays pause, not stop-music" {

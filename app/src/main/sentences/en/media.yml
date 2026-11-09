@@ -3,14 +3,19 @@ play:
   - turn on the? player
   - continue playing (the? song|media|track|music|audio|video|movie|stream|film)?
 
-# The last pause line is stop-music ("stop music", "stop playing my local
-# music", and the same shapes). MediaSkill has no storage permission, so those
-# phrases are not blocked when local music permission is denied.
-# LocalMusicPhrases.isStopMusic maps them to the shared stop command.
+# The stop-music lines ("stop music", "stop playing my local music",
+# "turn off the music", "turn the music off", and the same shapes with an
+# optional please|ok|now) are mapped by LocalMusicPhrases.isStopMusic to the
+# shared stop command. MediaSkill has no storage permission, so those phrases
+# are not blocked when local music permission is denied. "turn off the song"
+# stays pause. Flashlight keeps "turn off the light".
 pause:
   - pause|halt|stop|hold (the? song|media|track|music|audio|video|movie|stream|film)
   - put the? song|media|track|music|audio|video|movie|stream|film on hold
   - stop (playing)? (the|my)? (local)? music
+  - (please|ok|now)? stop (playing)? (the|my)? (local)? music (please|ok|now)?
+  - (please|ok|now)? (turn|switch) off (the|my)? (song|track|music|playback) (please|ok|now)?
+  - (please|ok|now)? (turn|switch) (the|my)? (song|track|music|playback) off (please|ok|now)?
 
 previous:
   - replay|play|(go|switch|return|rewind|(go? back)|(move back<ward|wards?>) to)? the? previous|last song|media|track|music|audio|video|movie|stream|film? (in the queue)?

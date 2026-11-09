@@ -156,6 +156,17 @@ class LocalMusicPhraseTest : StringSpec({
         "stop playing the music",
         "stop playing my music",
         "Stop The Music!",
+        "turn off the music",
+        "turn the music off",
+        "switch off the music",
+        "switch the music off",
+        "turn off my music",
+        "turn my music off",
+        "please stop the music",
+        "stop the music please",
+        "please turn off the music",
+        "turn the music off now",
+        "ok stop the music",
     )
     for (utterance in stopUtterances) {
         "utterance '$utterance' is stop music" {
@@ -170,6 +181,11 @@ class LocalMusicPhraseTest : StringSpec({
         "stop listening",
         "stop repeating",
         "play the music",
+        "turn off the song",
+        "turn the track off",
+        "switch off the playback",
+        "turn the music",
+        "please",
     )
     for (utterance in notStop) {
         "utterance '$utterance' is not stop music" {

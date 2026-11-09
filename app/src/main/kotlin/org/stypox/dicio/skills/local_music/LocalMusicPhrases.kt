@@ -57,11 +57,21 @@ object LocalMusicPhrases {
     )
 
     /**
-     * Same shapes as the stop-music line on MediaSkill's pause sentence in
-     * `sentences/en/media.yml`.
+     * Same shapes as the stop-music lines on MediaSkill's pause sentence in
+     * `sentences/en/media.yml`: "stop (playing) (the|my) (local) music",
+     * "turn|switch off (the|my) music" and "turn|switch (the|my) music off".
+     * A leading or trailing "please", "ok" or "now" is allowed. "turn off the
+     * song" is pause, not stop-music.
      */
+    private val STOP_FILLER = "(?:please|ok|now)"
     private val STOP_MUSIC = Regex(
-        "stop(?: playing)?(?: (?:the|my))?(?: local)? music"
+        "(?:$STOP_FILLER )*" +
+            "(?:" +
+            "stop(?: playing)?(?: (?:the|my))?(?: local)? music" +
+            "|(?:turn|switch) off(?: (?:the|my))? music" +
+            "|(?:turn|switch)(?: (?:the|my))? music off" +
+            ")" +
+            "(?: $STOP_FILLER)*"
     )
 
     /**
