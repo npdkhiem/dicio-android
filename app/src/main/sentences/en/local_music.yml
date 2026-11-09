@@ -3,6 +3,12 @@
 # hit play_song; LocalMusicPhrases redirects that capture and the exact
 # utterances below. A title that only contains the word ("play song next to
 # me", "play song last christmas") stays play_song.
+#
+# "play next from my music" / "play last from my phone" is the second
+# play_song line: it searches for a song named next/last. It is not a skip.
+#
+# Stop-music phrases live on MediaSkill (en/media.yml), which has no storage
+# permission. Repeat stays here and is still permission-gated.
 next:
   - play the? next|following (song|track|music|media|audio|one)?
 
@@ -12,9 +18,6 @@ previous:
 play_song:
   - play the? song|track|music .song.
   - play .song. from my music|phone
-
-stop:
-  - stop (playing)? (the|my)? (local)? music
 
 repeat_one:
   - repeat this (song|track|one)?

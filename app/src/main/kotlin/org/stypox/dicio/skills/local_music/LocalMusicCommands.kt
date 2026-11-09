@@ -14,12 +14,16 @@ import org.stypox.dicio.skills.local_music.LocalMusicRouting.Command
  */
 object LocalMusicCommands {
     fun fromLocal(sentence: LocalMusic, utterance: String): Command? {
+        // "play next from my music" captures "next" but must search for a
+        // song with that name. Only the bare skip sentences skip.
+        if (sentence is LocalMusic.PlaySong && LocalMusicPhrases.isPlayFromLibrary(utterance)) {
+            return null
+        }
         commandFromUtterance(utterance)?.let { return it }
         return when (sentence) {
             is LocalMusic.PlaySong -> skipCommand(LocalMusicPhrases.skipForCapture(sentence.song))
             LocalMusic.Next -> Command.Next
             LocalMusic.Previous -> Command.Previous
-            LocalMusic.Stop -> Command.StopMusic
             LocalMusic.RepeatOne,
             LocalMusic.RepeatAll,
             LocalMusic.RepeatOff -> null

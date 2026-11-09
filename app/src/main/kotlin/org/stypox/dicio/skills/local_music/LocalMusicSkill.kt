@@ -8,6 +8,7 @@ import org.dicio.skill.skill.SkillOutput
 import org.dicio.skill.standard.StandardRecognizerData
 import org.stypox.dicio.sentences.Sentences.LocalMusic
 import org.stypox.dicio.skills.media.MediaOutput
+import org.stypox.dicio.skills.media.PlaybackSpeech
 
 class LocalMusicSkill(
     correspondingSkillInfo: SkillInfo,
@@ -26,8 +27,23 @@ class LocalMusicSkill(
     ): SkillOutput {
         // Shared with MediaSkill so stop / next / previous do not depend on
         // which skill the ranker picked.
+        // A song the user asked for that failed to decode is reported on this
+        // reply. The command below still runs. See LocalMusicPlaybackErrors.
+        val couldNotPlay = controller.consumeCouldNotPlay()
         LocalMusicCommands.fromLocal(inputData.sentence, inputData.utterance)?.let { command ->
-            return MediaOutput(SharedPlayback.perform(ctx, controller, command))
+            val speech = SharedPlayback.perform(ctx, controller, command)
+            return MediaOutput(couldNotPlay?.let(PlaybackSpeech::CouldNotPlay) ?: speech)
+        }
+        if (couldNotPlay != null) {
+            when (val sentence = inputData.sentence) {
+                is LocalMusic.PlaySong -> playByName(sentence)
+                LocalMusic.RepeatOne -> controller.setRepeat(RepeatMode.ONE)
+                LocalMusic.RepeatAll -> controller.setRepeat(RepeatMode.ALL)
+                LocalMusic.RepeatOff -> controller.setRepeat(RepeatMode.OFF)
+                LocalMusic.Next, LocalMusic.Previous ->
+                    error("control sentence was not mapped to a command")
+            }
+            return LocalMusicOutput(LocalMusicSpeech.CouldNotPlay(couldNotPlay))
         }
         return when (val sentence = inputData.sentence) {
             is LocalMusic.PlaySong -> playByName(sentence)
@@ -43,7 +59,7 @@ class LocalMusicSkill(
                 controller.setRepeat(RepeatMode.OFF)
                 LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.OFF))
             }
-            LocalMusic.Next, LocalMusic.Previous, LocalMusic.Stop ->
+            LocalMusic.Next, LocalMusic.Previous ->
                 error("control sentence was not mapped to a command")
         }
     }

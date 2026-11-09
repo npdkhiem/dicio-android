@@ -115,11 +115,35 @@ class LocalMusicPhraseTest : StringSpec({
         "play the last song of summer",
         "play hello",
         "skip the song",
+        // "from my music|phone" searches for a song named next/last.
+        "play next from my music",
+        "play last from my phone",
+        "play previous from my music",
+        "play following from my phone",
     )
     for (utterance in notExactSkips) {
         "utterance '$utterance' is not an exact skip" {
             LocalMusicPhrases.skipForUtterance(utterance) shouldBe null
         }
+    }
+
+    val fromLibrary = listOf(
+        "play next from my music",
+        "play last from my phone",
+        "play previous from my music",
+        "play following from my phone",
+        "play the next song from my music",
+    )
+    for (utterance in fromLibrary) {
+        "utterance '$utterance' searches the library" {
+            LocalMusicPhrases.isPlayFromLibrary(utterance) shouldBe true
+            LocalMusicPhrases.skipForUtterance(utterance) shouldBe null
+        }
+    }
+
+    "bare skip utterances are not library searches" {
+        LocalMusicPhrases.isPlayFromLibrary("play the next song") shouldBe false
+        LocalMusicPhrases.isPlayFromLibrary("play song next") shouldBe false
     }
 
     val stopUtterances = listOf(

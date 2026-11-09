@@ -12,6 +12,17 @@ class LocalMusicQueueTest : StringSpec({
         queue.tracks shouldBe listOf("apple.mp3", "Banana.mp3", "Zebra.mp3")
     }
 
+    "same stem prefers mp3 then m4a then flac then ogg then wav" {
+        val queue = queueOf("Hello.wav", "Hello.ogg", "Hello.flac", "Hello.m4a", "Hello.mp3")
+        queue.tracks shouldBe listOf(
+            "Hello.mp3",
+            "Hello.m4a",
+            "Hello.flac",
+            "Hello.ogg",
+            "Hello.wav",
+        )
+    }
+
     "sorts by normalized name so Vietnamese đ counts as d" {
         val queue = queueOf("Đi.mp3", "Anh.mp3", "Da.mp3")
         queue.tracks shouldBe listOf("Anh.mp3", "Da.mp3", "Đi.mp3")

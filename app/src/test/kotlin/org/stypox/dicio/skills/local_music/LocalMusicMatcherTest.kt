@@ -46,9 +46,41 @@ class LocalMusicMatcherTest : StringSpec({
         match("đi", listOf("di.mp3")) shouldBe MatchResult.Single("di.mp3")
     }
 
-    "tie when top two scores are equal, deterministic order" {
-        val files = listOf("hello.mp3", "hello.flac", "yesterday.ogg")
-        match("hello", files) shouldBe MatchResult.Tie(listOf("hello.flac", "hello.mp3"))
+    "identical normalized stems are one choice, mp3 before flac" {
+        match("hello", listOf("Hello.flac", "Hello.mp3", "yesterday.ogg")) shouldBe
+            MatchResult.Single("Hello.mp3")
+        match("hello", listOf("Hello.mp3", "Hello.flac")) shouldBe
+            MatchResult.Single("Hello.mp3")
+    }
+
+    "same display name in two places is not a tie" {
+        match("intro", listOf("Intro.mp3", "Intro.mp3")) shouldBe
+            MatchResult.Single("Intro.mp3")
+    }
+
+    "accented stem that normalizes the same is not a tie" {
+        match("hello", listOf("Héllo.flac", "Hello.mp3")) shouldBe
+            MatchResult.Single("Hello.mp3")
+    }
+
+    "different titles with the same score still tie" {
+        match("hello", listOf("Hello World.mp3", "Hello There.mp3")) shouldBe
+            MatchResult.Tie(listOf("Hello There.mp3", "Hello World.mp3"))
+    }
+
+    "short queries do not match inside a longer token" {
+        match("no", listOf("Snow.mp3")) shouldBe MatchResult.NoMatch
+        match("lo", listOf("Hello.mp3")) shouldBe MatchResult.NoMatch
+        match("love", listOf("Glove Puppet.mp3")) shouldBe MatchResult.NoMatch
+    }
+
+    "short query still matches a whole token or the whole stem" {
+        match("no", listOf("Snow.mp3", "No.mp3")) shouldBe MatchResult.Single("No.mp3")
+        match("anh") shouldBe MatchResult.Single("Nơi Này Có Anh.mp3")
+    }
+
+    "bad guys matches Bad Guy at a token boundary" {
+        match("bad guys", listOf("Bad Guy.mp3")) shouldBe MatchResult.Single("Bad Guy.mp3")
     }
 
     "no match when nothing is reasonably close" {

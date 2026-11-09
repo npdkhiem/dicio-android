@@ -63,10 +63,15 @@ class LocalMusicControllerImpl @Inject constructor(
             return (SystemClock.elapsedRealtime() - at).coerceAtLeast(0L)
         }
 
+    override fun consumeCouldNotPlay(): String? = LocalMusicPlaybackErrors.consume()
+
     override suspend fun playByName(query: String): PlayByNameResult {
         val treeUri = context.localMusicDataStore.data.first().musicFolderTreeUri.trim()
         if (treeUri.isEmpty() && !hasStoragePermission()) {
             return PlayByNameResult.PermissionMissing
+        }
+        if (treeUri.isNotEmpty() && !hasPersistedTreeAccess(treeUri)) {
+            return PlayByNameResult.AccessLost
         }
         val files = try {
             withContext(Dispatchers.IO) { LocalMusicLibrary.list(context, treeUri) }
@@ -74,11 +79,10 @@ class LocalMusicControllerImpl @Inject constructor(
             throw e
         } catch (e: SecurityException) {
             Log.w(TAG, "Cannot list music", e)
-            return if (treeUri.isEmpty()) {
-                PlayByNameResult.PermissionMissing
-            } else {
-                PlayByNameResult.NoFolderOrEmpty
-            }
+            return LocalMusicAccess.failureForList(
+                savedTree = treeUri.isNotEmpty(),
+                securityException = true,
+            )
         } catch (e: Exception) {
             Log.w(TAG, "Cannot list music", e)
             return PlayByNameResult.NoFolderOrEmpty
@@ -104,23 +108,17 @@ class LocalMusicControllerImpl @Inject constructor(
         it.play()
     }
 
-    override suspend fun next(): NextResult = withConnected(NextResult.Advanced) { player ->
-        val count = player.mediaItemCount
-        val index = player.currentMediaItemIndex
-        val atLast = count > 0 && index >= 0 && index == count - 1
-        val mode = LocalMusicRepeat.fromPlayerRepeatMode(player.repeatMode)
-        if (atLast && LocalMusicQueue.nextAtEndOutcome(mode) == NextAtEndOutcome.Stop) {
-            // seekToNext is a no-op on the last item when repeat is OFF, and
-            // ExoPlayer navigates REPEAT_MODE_ONE like OFF. Stop instead.
-            stopPlayer(player)
-            NextResult.LastSong
-        } else {
-            player.seekToNext()
-            NextResult.Advanced
-        }
+    override suspend fun next(): SkipOutcome = withConnected(SkipOutcome.NothingPlaying) { player ->
+        val decision = LocalMusicTransport.decideNext(LocalMusicTransport.snapshotOf(player))
+        LocalMusicTransport.apply(player, decision)
+        decision.toOutcome()
     }
 
-    override suspend fun previous() = withConnected { it.seekToPrevious() }
+    override suspend fun previous(): SkipOutcome = withConnected(SkipOutcome.NothingPlaying) { player ->
+        val decision = LocalMusicTransport.decidePrevious(LocalMusicTransport.snapshotOf(player))
+        LocalMusicTransport.apply(player, decision)
+        decision.toOutcome()
+    }
 
     override suspend fun stop() = withConnected { stopPlayer(it) }
 
@@ -136,6 +134,17 @@ class LocalMusicControllerImpl @Inject constructor(
             android.Manifest.permission.READ_EXTERNAL_STORAGE
         }
         return checkPermissions(context, permission)
+    }
+
+    /**
+     * A revoked SAF grant disappears from the persisted list. Treat that as
+     * lost access before listing, which would otherwise look like an empty folder.
+     */
+    private fun hasPersistedTreeAccess(treeUri: String): Boolean {
+        val parsed = Uri.parse(treeUri)
+        return context.contentResolver.persistedUriPermissions.any { permission ->
+            permission.isReadPermission && permission.uri == parsed
+        }
     }
 
     private suspend fun startPlayback(playlist: List<LocalMusicPlaylist.Track>, index: Int) {
@@ -157,7 +166,12 @@ class LocalMusicControllerImpl @Inject constructor(
             controller.repeatMode = LocalMusicRepeat.toPlayerRepeatMode(repeatMode)
             controller.prepare()
             controller.play()
-            markActive()
+            val stem = playlist.getOrNull(index)
+                ?.let { LocalMusicMatcher.fileStem(it.displayName) }
+            if (!stem.isNullOrEmpty()) {
+                LocalMusicPlaybackErrors.onRequested(stem)
+            }
+            applyActivity(LocalMusicActivity.Signal.UserCommand)
             refresh(controller)
         }
     }
@@ -237,7 +251,7 @@ class LocalMusicControllerImpl @Inject constructor(
                 return@withContext default
             }
             val result = block(controller)
-            markActive()
+            applyActivity(LocalMusicActivity.Signal.UserCommand)
             refresh(controller)
             result
         }
@@ -261,16 +275,29 @@ class LocalMusicControllerImpl @Inject constructor(
         }
     }
 
+    private var permanentFocusLoss = false
+
     private val playerListener = object : Player.Listener {
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            permanentFocusLoss = !playWhenReady &&
+                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS
+        }
+
         override fun onEvents(player: Player, events: Player.Events) {
             hasQueueState = player.mediaItemCount > 0
             isPlayingState = player.isPlaying
-            if (events.containsAny(
-                    Player.EVENT_IS_PLAYING_CHANGED,
-                    Player.EVENT_MEDIA_ITEM_TRANSITION,
-                )
-            ) {
-                markActive()
+            val focusLoss = permanentFocusLoss
+            permanentFocusLoss = false
+            if (focusLoss) {
+                // The following IS_PLAYING_CHANGED is the focus-loss pause.
+                // Do not refresh the window from it.
+                applyActivity(LocalMusicActivity.Signal.PermanentAudioFocusLoss)
+                return
+            }
+            if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) && player.isPlaying) {
+                applyActivity(LocalMusicActivity.Signal.TrackTransitionWhilePlaying)
+            } else if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
+                applyActivity(LocalMusicActivity.Signal.PassivePlaybackChange)
             }
         }
     }
@@ -280,8 +307,20 @@ class LocalMusicControllerImpl @Inject constructor(
         isPlayingState = player.isPlaying
     }
 
-    private fun markActive() {
-        lastActiveElapsedRealtime = SystemClock.elapsedRealtime()
+    private fun applyActivity(signal: LocalMusicActivity.Signal) {
+        when (LocalMusicActivity.effect(signal)) {
+            LocalMusicActivity.Effect.Refresh ->
+                lastActiveElapsedRealtime = SystemClock.elapsedRealtime()
+            LocalMusicActivity.Effect.Clear ->
+                lastActiveElapsedRealtime = NEVER_ACTIVE
+            LocalMusicActivity.Effect.Keep -> Unit
+        }
+    }
+
+    private fun LocalMusicTransport.SkipDecision.toOutcome(): SkipOutcome = when (this) {
+        is LocalMusicTransport.SkipDecision.Play -> SkipOutcome.Advanced
+        LocalMusicTransport.SkipDecision.LastSong -> SkipOutcome.LastSong
+        LocalMusicTransport.SkipDecision.NothingPlaying -> SkipOutcome.NothingPlaying
     }
 
     companion object {

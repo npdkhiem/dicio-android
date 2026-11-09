@@ -19,6 +19,10 @@ class LocalMusicOutput(
             ctx.getString(R.string.skill_local_music_no_songs)
         LocalMusicSpeech.PermissionMissing ->
             ctx.getString(R.string.skill_local_music_permission_missing)
+        LocalMusicSpeech.AccessLost ->
+            ctx.getString(R.string.skill_local_music_access_lost)
+        is LocalMusicSpeech.CouldNotPlay ->
+            ctx.getString(R.string.skill_local_music_could_not_play, speech.name)
         is LocalMusicSpeech.Repeat -> when (speech.mode) {
             RepeatMode.OFF -> ctx.getString(R.string.skill_local_music_repeat_off)
             RepeatMode.ONE -> ctx.getString(R.string.skill_local_music_repeat_one)

@@ -8,6 +8,15 @@ package org.stypox.dicio.skills.local_music
  * "stop the music". Both skills call these checks so the outcome does not
  * depend on which skill wins the ranker.
  *
+ * "play next from my music" / "play last from my phone" are title searches
+ * ([isPlayFromLibrary]), not skips. Only the "play (the)? next|following|
+ * previous|last (song|track|...)?" forms skip.
+ *
+ * Stop-music phrases are recognized by MediaSkill (`sentences/en/media.yml`),
+ * which asks for no storage permission. [isStopMusic] still maps them to the
+ * shared stop command. Repeat phrases stay on the local skill and stay
+ * permission-gated.
+ *
  * Only the whole normalized string counts. Normalization is
  * [LocalMusicMatcher.normalizeName]: lower case, diacritics removed, punctuation
  * turned into spaces. A title that merely contains a skip word is not a skip:
@@ -47,10 +56,19 @@ object LocalMusicPhrases {
             "play(?: the)? (?:song|track|music) (?:previous|last)(?: $NOUN)?"
     )
 
-    /** Same shapes as the `stop` lines in `sentences/en/local_music.yml`. */
+    /**
+     * Same shapes as the stop-music line on MediaSkill's pause sentence in
+     * `sentences/en/media.yml`.
+     */
     private val STOP_MUSIC = Regex(
         "stop(?: playing)?(?: (?:the|my))?(?: local)? music"
     )
+
+    /**
+     * "play <title> from my music|phone". The captured title is a search,
+     * even when it is the word next, last, previous, or following.
+     */
+    private val PLAY_FROM_LIBRARY = Regex("play .+ from my (?:music|phone)")
 
     fun skipForCapture(capture: String?): TrackSkip? {
         val normalized = normalize(capture) ?: return null
@@ -73,6 +91,11 @@ object LocalMusicPhrases {
     fun isStopMusic(utterance: String?): Boolean {
         val normalized = normalize(utterance) ?: return false
         return STOP_MUSIC.matches(normalized)
+    }
+
+    fun isPlayFromLibrary(utterance: String?): Boolean {
+        val normalized = normalize(utterance) ?: return false
+        return PLAY_FROM_LIBRARY.matches(normalized)
     }
 
     private fun normalize(raw: String?): String? {

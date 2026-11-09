@@ -187,6 +187,9 @@
     <string name="skill_local_music_last_song">That was the last song</string>
     <string name="skill_local_music_permission_missing">I need permission to read your music</string>
     <string name="skill_local_music_missing_song">Which song should I play?</string>
+    <string name="skill_local_music_nothing_playing">Nothing is playing</string>
+    <string name="skill_local_music_could_not_play">I couldn\'t play %1$s</string>
+    <string name="skill_local_music_access_lost">I lost access to your music folder, pick it again in Settings</string>
     <string name="pref_local_music_folder">Music folder</string>
     <string name="pref_local_music_folder_default">Music (default)</string>
     <string name="pref_local_music_folder_unknown">Custom folder</string>

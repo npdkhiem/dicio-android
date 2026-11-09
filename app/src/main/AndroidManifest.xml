@@ -34,6 +34,9 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Media3 ExoPlayer WAKE_MODE_LOCAL holds this so the CPU stays awake
+         during screen-off playback, including track changes. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- allowBackup=false because of a critical nasty bug: https://medium.com/p/924c91bafcac -->
     <application

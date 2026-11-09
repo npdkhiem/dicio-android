@@ -44,6 +44,11 @@ import org.stypox.dicio.util.PERMISSION_READ_MEDIA_AUDIO
  *
  * The chosen SAF folder is not scanned recursively. The default Music library
  * does include subfolders. See [LocalMusicLibrary].
+ *
+ * Stop-music phrases ("stop music", "stop the music", "stop playing my local
+ * music", and the same shapes) are recognized by MediaSkill, which has no
+ * storage permission, so a denied permission does not block pausing other
+ * apps. Repeat phrases stay on this skill and are still permission-gated.
  */
 class LocalMusicInfo(
     private val controller: LocalMusicController,

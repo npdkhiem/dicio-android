@@ -46,10 +46,39 @@ class LocalMusicPlaylistTest : StringSpec({
             LocalMusicPlaylist.ResolvedPlay.Play("zeta.mp3", 2)
     }
 
-    "resolvePlay tie does not pick a track" {
-        val names = listOf("Hello.mp3", "hello.wav")
+    "identical stems play the preferred file at its playlist index" {
+        val playlist = LocalMusicPlaylist.fromTracks(
+            listOf(
+                track("Hello.flac", "flac-uri"),
+                track("Hello.mp3", "mp3-uri"),
+                track("hello.wav", "wav-uri"),
+            )
+        )
+        // mp3 > flac > wav, then that index is the one playback seeks to.
+        playlist.map { it.displayName } shouldBe listOf("Hello.mp3", "Hello.flac", "hello.wav")
+        LocalMusicPlaylist.resolve("hello", playlist.map { it.displayName }) shouldBe
+            LocalMusicPlaylist.ResolvedPlay.Play("Hello.mp3", 0)
+    }
+
+    "duplicate names resolve to the first URI, not a tie" {
+        val playlist = LocalMusicPlaylist.fromTracks(
+            listOf(
+                track("Intro.mp3", "content://album-b/Intro.mp3"),
+                track("Intro.mp3", "content://album-a/Intro.mp3"),
+            )
+        )
+        playlist.map { it.uri } shouldBe listOf(
+            "content://album-a/Intro.mp3",
+            "content://album-b/Intro.mp3",
+        )
+        LocalMusicPlaylist.resolve("intro", playlist.map { it.displayName }) shouldBe
+            LocalMusicPlaylist.ResolvedPlay.Play("Intro.mp3", 0)
+    }
+
+    "different titles with the same score still tie and do not pick an index" {
+        val names = listOf("Hello World.mp3", "Hello There.mp3")
         LocalMusicPlaylist.resolve("hello", names) shouldBe
-            LocalMusicPlaylist.ResolvedPlay.Tie("Hello.mp3", "hello.wav")
+            LocalMusicPlaylist.ResolvedPlay.Tie("Hello There.mp3", "Hello World.mp3")
     }
 
     "resolvePlay no match and empty folder" {

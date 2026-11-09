@@ -28,9 +28,12 @@ enum class NextAtEndOutcome {
 }
 
 /**
- * In-memory playlist: the given file names sorted case-insensitively by
- * [LocalMusicMatcher.normalizeName] of the file stem, plus a current index and
- * a [RepeatMode].
+ * In-memory playlist: the given file names in [LocalMusicMatcher.nameOrder]
+ * (normalized stem, then extension preference mp3 > m4a > flac > ogg > wav,
+ * then the full file name), plus a current index and a [RepeatMode].
+ * [LocalMusicPlaylist] uses the same stem and extension keys and breaks
+ * remaining ties with the content URI, which is the path when two files share
+ * a name.
  *
  * Navigation semantics, also used by the local player
  * ([NextAtEndOutcome], [LocalMusicRepeat]):
@@ -52,11 +55,7 @@ class LocalMusicQueue(
     fileNames: List<String>,
     var repeatMode: RepeatMode = RepeatMode.OFF,
 ) {
-    val tracks: List<String> = fileNames.sortedWith(
-        compareBy<String, String>(String.CASE_INSENSITIVE_ORDER) {
-            LocalMusicMatcher.normalizeName(LocalMusicMatcher.fileStem(it))
-        }.thenBy(String.CASE_INSENSITIVE_ORDER) { it }
-    )
+    val tracks: List<String> = fileNames.sortedWith(LocalMusicMatcher.nameOrder())
 
     var currentIndex: Int = NO_TRACK
         private set

@@ -11,6 +11,15 @@ sealed interface LocalMusicSpeech {
     data class Tie(val a: String, val b: String) : LocalMusicSpeech
     data object NoFolderOrEmpty : LocalMusicSpeech
     data object PermissionMissing : LocalMusicSpeech
+
+    /** Saved folder grant was revoked. Pick the folder again in Settings. */
+    data object AccessLost : LocalMusicSpeech
+
+    /**
+     * The song requested by the previous play-by-name failed to decode.
+     * Spoken on the next voice reply. See [LocalMusicPlaybackErrors].
+     */
+    data class CouldNotPlay(val name: String) : LocalMusicSpeech
     data class Repeat(val mode: RepeatMode) : LocalMusicSpeech
     data object Stopped : LocalMusicSpeech
     data object MissingSong : LocalMusicSpeech
@@ -27,5 +36,6 @@ object LocalMusicSpeechSelection {
         )
         PlayByNameResult.NoFolderOrEmpty -> LocalMusicSpeech.NoFolderOrEmpty
         PlayByNameResult.PermissionMissing -> LocalMusicSpeech.PermissionMissing
+        PlayByNameResult.AccessLost -> LocalMusicSpeech.AccessLost
     }
 }

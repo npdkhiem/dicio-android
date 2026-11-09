@@ -18,6 +18,10 @@ sealed interface PlaybackSpeech {
     data object NoSession : PlaybackSpeech
     data object Stopped : PlaybackSpeech
     data object LastSong : PlaybackSpeech
+    data object NothingPlaying : PlaybackSpeech
+
+    /** See [org.stypox.dicio.skills.local_music.LocalMusicPlaybackErrors]. */
+    data class CouldNotPlay(val name: String) : PlaybackSpeech
 
     companion object {
         fun from(action: Media?): PlaybackSpeech = when (action) {
@@ -43,5 +47,8 @@ class MediaOutput(
         PlaybackSpeech.NoSession -> ctx.getString(R.string.skill_media_no_media_session)
         PlaybackSpeech.Stopped -> ctx.getString(R.string.skill_local_music_stopped)
         PlaybackSpeech.LastSong -> ctx.getString(R.string.skill_local_music_last_song)
+        PlaybackSpeech.NothingPlaying -> ctx.getString(R.string.skill_local_music_nothing_playing)
+        is PlaybackSpeech.CouldNotPlay ->
+            ctx.getString(R.string.skill_local_music_could_not_play, speech.name)
     }
 }

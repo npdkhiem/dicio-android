@@ -30,6 +30,12 @@ class LocalMusicSpeechTest : StringSpec({
             LocalMusicSpeech.NoFolderOrEmpty
         LocalMusicSpeechSelection.forPlayResult(PlayByNameResult.PermissionMissing) shouldBe
             LocalMusicSpeech.PermissionMissing
+        LocalMusicSpeechSelection.forPlayResult(PlayByNameResult.AccessLost) shouldBe
+            LocalMusicSpeech.AccessLost
+    }
+
+    "could not play keeps the stem" {
+        LocalMusicSpeech.CouldNotPlay("Hello").name shouldBe "Hello"
     }
 
     "repeat and stop are their own speech" {
