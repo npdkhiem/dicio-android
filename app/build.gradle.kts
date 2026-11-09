@@ -222,5 +222,13 @@ configurations.configureEach {
 }
 
 fun gitBranch(): String {
+    // JGit can't open linked git worktrees (where .git is a file), so read HEAD directly there
+    val dotGit = rootDir.resolve(".git")
+    if (dotGit.isFile) {
+        val gitDir = dotGit.readText().trim().removePrefix("gitdir:").trim()
+            .let { if (File(it).isAbsolute) File(it) else rootDir.resolve(it) }
+        val head = gitDir.resolve("HEAD").readText().trim()
+        return if (head.startsWith("ref: refs/heads/")) head.removePrefix("ref: refs/heads/") else head
+    }
     return Git.open(rootDir).use { it.repository.branch }
 }
