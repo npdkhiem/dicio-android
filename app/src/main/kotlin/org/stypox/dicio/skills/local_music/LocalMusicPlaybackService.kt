@@ -2,9 +2,11 @@ package org.stypox.dicio.skills.local_music
 
 import android.app.PendingIntent
 import android.content.Intent
+import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -24,6 +26,8 @@ import org.stypox.dicio.MainActivity
 class LocalMusicPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
 
+    // setMaxSeekToPreviousPositionMs is marked @UnstableApi in Media3.
+    @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
         val audioAttributes = AudioAttributes.Builder()
