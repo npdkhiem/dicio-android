@@ -1,0 +1,20 @@
+play_song:
+  - play the? song|track|music .song.
+  - play .song. from my music|phone
+
+stop:
+  - stop (playing )?(my |the local |local )?music
+
+repeat_one:
+  - repeat this (song|track|one)?
+  - repeat the song|track
+  - repeat one
+  - loop this song
+
+repeat_all:
+  - repeat all|everything|(the playlist)
+  - loop all
+
+repeat_off:
+  - (stop|(turn off)|disable) (repeat|repeating|looping)
+  - repeat off

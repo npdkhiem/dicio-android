@@ -45,6 +45,18 @@ skills:
       - id: previous
       - id: next
 
+  - id: local_music
+    specificity: high
+    sentences:
+      - id: play_song
+        captures:
+          - id: song
+            type: string
+      - id: stop
+      - id: repeat_one
+      - id: repeat_all
+      - id: repeat_off
+
   - id: joke
     specificity: high
     sentences:

@@ -173,6 +173,14 @@
     <string name="skill_media_previous">Previous media…</string>
     <string name="skill_media_next">Next media…</string>
     <string name="skill_media_no_media_session">No media session is active</string>
+    <string name="skill_name_local_music">Local music</string>
+    <string name="skill_sentence_example_local_music">Play song hello</string>
+    <string name="skill_local_music_would_play">Would play %1$s</string>
+    <string name="skill_local_music_would_stop">Would stop local music</string>
+    <string name="skill_local_music_would_repeat_one">Would repeat this song</string>
+    <string name="skill_local_music_would_repeat_all">Would repeat all songs</string>
+    <string name="skill_local_music_would_repeat_off">Would turn repeat off</string>
+    <string name="skill_local_music_missing_song">Which song should I play?</string>
     <string name="skill_calculator_could_not_calculate">I could not calculate your request</string>
     <string name="skill_telephone_unknown_contact">No contact found, try again</string>
     <string name="skill_telephone_found_contacts">I found %1$d contacts, which one shall I call?</string>
