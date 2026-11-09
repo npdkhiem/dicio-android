@@ -184,6 +184,7 @@
     <string name="skill_local_music_repeat_one">Repeat is one</string>
     <string name="skill_local_music_repeat_all">Repeat is all</string>
     <string name="skill_local_music_stopped">Stopped</string>
+    <string name="skill_local_music_last_song">That was the last song</string>
     <string name="skill_local_music_permission_missing">I need permission to read your music</string>
     <string name="skill_local_music_missing_song">Which song should I play?</string>
     <string name="pref_local_music_folder">Music folder</string>

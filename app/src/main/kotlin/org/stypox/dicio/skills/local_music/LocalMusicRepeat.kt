@@ -13,6 +13,12 @@ import androidx.media3.common.Player
  * not wrap: next on the last item leaves the index unchanged, and previous on
  * the first item restarts it.
  *
+ * Explicit next on the last item is not left to [Player.seekToNext]. That call
+ * does nothing for [Player.REPEAT_MODE_OFF], and [Player.REPEAT_MODE_ONE] is
+ * navigated as off, so it does nothing there too. [LocalMusicQueue.nextAtEndOutcome]
+ * says stop for those modes (the controller pauses and stops, and the skill
+ * says "That was the last song") and wrap for [Player.REPEAT_MODE_ALL].
+ *
  * [MAX_SEEK_TO_PREVIOUS_POSITION_MS] is [Long.MAX_VALUE] so previous moves to
  * the previous item whenever one exists. ExoPlayer's default of 3 seconds
  * would restart the current item instead. On the first item there is no
@@ -25,5 +31,11 @@ object LocalMusicRepeat {
         RepeatMode.OFF -> Player.REPEAT_MODE_OFF
         RepeatMode.ONE -> Player.REPEAT_MODE_ONE
         RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+    }
+
+    fun fromPlayerRepeatMode(playerMode: Int): RepeatMode = when (playerMode) {
+        Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+        Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+        else -> RepeatMode.OFF
     }
 }

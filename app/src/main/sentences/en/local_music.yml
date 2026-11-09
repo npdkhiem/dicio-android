@@ -1,9 +1,20 @@
+# Next/previous are matched before play_song (equal scores keep the earlier
+# sentence). The DSL cannot exclude a capture, so "play song next" can still
+# hit play_song; LocalMusicPhrases redirects that capture and the exact
+# utterances below. A title that only contains the word ("play song next to
+# me", "play song last christmas") stays play_song.
+next:
+  - play the? next|following (song|track|music|media|audio|one)?
+
+previous:
+  - play the? previous|last (song|track|music|media|audio)?
+
 play_song:
   - play the? song|track|music .song.
   - play .song. from my music|phone
 
 stop:
-  - stop (playing )?(my |the local |local )?music
+  - stop (playing)? (the|my)? (local)? music
 
 repeat_one:
   - repeat this (song|track|one)?

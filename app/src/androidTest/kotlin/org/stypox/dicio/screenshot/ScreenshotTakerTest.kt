@@ -49,6 +49,7 @@ import org.stypox.dicio.skills.joke.JokeInfo
 import org.stypox.dicio.skills.joke.JokeOutput
 import org.stypox.dicio.skills.lyrics.LyricsInfo
 import org.stypox.dicio.skills.lyrics.LyricsOutput
+import org.stypox.dicio.skills.local_music.PreviewLocalMusicController
 import org.stypox.dicio.skills.media.MediaInfo
 import org.stypox.dicio.skills.media.MediaOutput
 import org.stypox.dicio.skills.search.SearchInfo
@@ -330,7 +331,7 @@ class ScreenshotTakerTest {
         ), null)
 
         private val screenshot3InteractionLog = InteractionLog(listOf(
-            Interaction(MediaInfo, listOf(
+            Interaction(MediaInfo(PreviewLocalMusicController), listOf(
                 QuestionAnswer(
                     question = "pause the song",
                     answer = MediaOutput(Sentences.Media.Pause)

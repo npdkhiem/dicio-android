@@ -55,7 +55,7 @@ class SkillHandler @Inject constructor(
         TelephoneInfo,
         TimerInfo,
         CurrentTimeInfo,
-        MediaInfo,
+        MediaInfo(localMusicController),
         LocalMusicInfo(localMusicController),
         JokeInfo,
         ListeningInfo(dataStore),

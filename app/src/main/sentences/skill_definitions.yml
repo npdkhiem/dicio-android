@@ -52,6 +52,8 @@ skills:
         captures:
           - id: song
             type: string
+      - id: next
+      - id: previous
       - id: stop
       - id: repeat_one
       - id: repeat_all

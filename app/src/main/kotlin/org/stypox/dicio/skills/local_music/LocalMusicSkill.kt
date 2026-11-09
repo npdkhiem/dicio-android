@@ -1,48 +1,65 @@
 package org.stypox.dicio.skills.local_music
 
 import org.dicio.skill.context.SkillContext
+import org.dicio.skill.skill.Score
+import org.dicio.skill.skill.Skill
 import org.dicio.skill.skill.SkillInfo
 import org.dicio.skill.skill.SkillOutput
 import org.dicio.skill.standard.StandardRecognizerData
-import org.dicio.skill.standard.StandardRecognizerSkill
 import org.stypox.dicio.sentences.Sentences.LocalMusic
+import org.stypox.dicio.skills.media.MediaOutput
 
 class LocalMusicSkill(
     correspondingSkillInfo: SkillInfo,
-    data: StandardRecognizerData<LocalMusic>,
+    private val data: StandardRecognizerData<LocalMusic>,
     private val controller: LocalMusicController,
-) : StandardRecognizerSkill<LocalMusic>(correspondingSkillInfo, data) {
+) : Skill<LocalMusicUtterance>(correspondingSkillInfo, data.specificity) {
 
-    override suspend fun generateOutput(ctx: SkillContext, inputData: LocalMusic): SkillOutput {
-        return when (inputData) {
-            is LocalMusic.PlaySong -> {
-                val query = inputData.song?.trim().orEmpty()
-                if (query.isEmpty()) {
-                    LocalMusicOutput(LocalMusicSpeech.MissingSong)
-                } else {
-                    // A tie returns a question and the controller plays nothing.
-                    val speech = LocalMusicSpeechSelection.forPlayResult(
-                        controller.playByName(query),
-                    )
-                    LocalMusicOutput(speech)
-                }
-            }
-            is LocalMusic.Stop -> {
-                controller.stop()
-                LocalMusicOutput(LocalMusicSpeech.Stopped)
-            }
-            is LocalMusic.RepeatOne -> {
+    override fun score(ctx: SkillContext, input: String): Pair<Score, LocalMusicUtterance> {
+        val (score, sentence) = data.score(ctx, input)
+        return score to LocalMusicUtterance(sentence, input)
+    }
+
+    override suspend fun generateOutput(
+        ctx: SkillContext,
+        inputData: LocalMusicUtterance,
+    ): SkillOutput {
+        // Shared with MediaSkill so stop / next / previous do not depend on
+        // which skill the ranker picked.
+        LocalMusicCommands.fromLocal(inputData.sentence, inputData.utterance)?.let { command ->
+            return MediaOutput(SharedPlayback.perform(ctx, controller, command))
+        }
+        return when (val sentence = inputData.sentence) {
+            is LocalMusic.PlaySong -> playByName(sentence)
+            LocalMusic.RepeatOne -> {
                 controller.setRepeat(RepeatMode.ONE)
                 LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.ONE))
             }
-            is LocalMusic.RepeatAll -> {
+            LocalMusic.RepeatAll -> {
                 controller.setRepeat(RepeatMode.ALL)
                 LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.ALL))
             }
-            is LocalMusic.RepeatOff -> {
+            LocalMusic.RepeatOff -> {
                 controller.setRepeat(RepeatMode.OFF)
                 LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.OFF))
             }
+            LocalMusic.Next, LocalMusic.Previous, LocalMusic.Stop ->
+                error("control sentence was not mapped to a command")
         }
     }
+
+    private suspend fun playByName(sentence: LocalMusic.PlaySong): SkillOutput {
+        val query = sentence.song?.trim().orEmpty()
+        if (query.isEmpty()) {
+            return LocalMusicOutput(LocalMusicSpeech.MissingSong)
+        }
+        // A tie returns a question and the controller plays nothing.
+        val speech = LocalMusicSpeechSelection.forPlayResult(controller.playByName(query))
+        return LocalMusicOutput(speech)
+    }
 }
+
+data class LocalMusicUtterance(
+    val sentence: LocalMusic,
+    val utterance: String,
+)

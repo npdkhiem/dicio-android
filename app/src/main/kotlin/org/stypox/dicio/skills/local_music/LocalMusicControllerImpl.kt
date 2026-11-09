@@ -104,14 +104,25 @@ class LocalMusicControllerImpl @Inject constructor(
         it.play()
     }
 
-    override suspend fun next() = withConnected { it.seekToNext() }
+    override suspend fun next(): NextResult = withConnected(NextResult.Advanced) { player ->
+        val count = player.mediaItemCount
+        val index = player.currentMediaItemIndex
+        val atLast = count > 0 && index >= 0 && index == count - 1
+        val mode = LocalMusicRepeat.fromPlayerRepeatMode(player.repeatMode)
+        if (atLast && LocalMusicQueue.nextAtEndOutcome(mode) == NextAtEndOutcome.Stop) {
+            // seekToNext is a no-op on the last item when repeat is OFF, and
+            // ExoPlayer navigates REPEAT_MODE_ONE like OFF. Stop instead.
+            stopPlayer(player)
+            NextResult.LastSong
+        } else {
+            player.seekToNext()
+            NextResult.Advanced
+        }
+    }
 
     override suspend fun previous() = withConnected { it.seekToPrevious() }
 
-    override suspend fun stop() = withConnected {
-        it.pause()
-        it.stop()
-    }
+    override suspend fun stop() = withConnected { stopPlayer(it) }
 
     override suspend fun setRepeat(mode: RepeatMode) {
         repeatMode = mode
@@ -208,17 +219,27 @@ class LocalMusicControllerImpl @Inject constructor(
         }
     }
 
+    private fun stopPlayer(player: MediaController) {
+        player.pause()
+        player.stop()
+    }
+
     private suspend fun withConnected(block: (MediaController) -> Unit) {
-        if (!connected && mediaController == null) return
-        withContext(Dispatchers.Main.immediate) {
-            val controller = mediaController ?: return@withContext
+        withConnected(Unit, block)
+    }
+
+    private suspend fun <T> withConnected(default: T, block: (MediaController) -> T): T {
+        if (!connected && mediaController == null) return default
+        return withContext(Dispatchers.Main.immediate) {
+            val controller = mediaController ?: return@withContext default
             if (!controller.isConnected) {
                 dropController(controller)
-                return@withContext
+                return@withContext default
             }
-            block(controller)
+            val result = block(controller)
             markActive()
             refresh(controller)
+            result
         }
     }
 

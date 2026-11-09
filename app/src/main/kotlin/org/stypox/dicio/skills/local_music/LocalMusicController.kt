@@ -10,7 +10,14 @@ interface LocalMusicController {
     suspend fun playByName(query: String): PlayByNameResult
     suspend fun pause()
     suspend fun resume()
-    suspend fun next()
+
+    /**
+     * Next track. On the last item with repeat off or one, stops playback and
+     * returns [NextResult.LastSong] instead of calling ExoPlayer `seekToNext`
+     * (which does nothing in that case). Repeat all wraps and returns
+     * [NextResult.Advanced].
+     */
+    suspend fun next(): NextResult
     suspend fun previous()
     suspend fun stop()
     suspend fun setRepeat(mode: RepeatMode)
@@ -23,6 +30,17 @@ interface LocalMusicController {
      * tracks, or null if it has never been active.
      */
     val lastActiveElapsedMillis: Long?
+}
+
+sealed interface NextResult {
+    /** Moved to another item, wrapped, or there was nothing to do. */
+    data object Advanced : NextResult
+
+    /**
+     * Already on the last item and repeat is off or one. Playback was stopped.
+     * The skill says "That was the last song".
+     */
+    data object LastSong : NextResult
 }
 
 sealed interface PlayByNameResult {
@@ -41,7 +59,7 @@ object PreviewLocalMusicController : LocalMusicController {
     override suspend fun playByName(query: String) = PlayByNameResult.NoFolderOrEmpty
     override suspend fun pause() = Unit
     override suspend fun resume() = Unit
-    override suspend fun next() = Unit
+    override suspend fun next(): NextResult = NextResult.Advanced
     override suspend fun previous() = Unit
     override suspend fun stop() = Unit
     override suspend fun setRepeat(mode: RepeatMode) = Unit

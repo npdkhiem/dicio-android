@@ -10,8 +10,11 @@ import org.dicio.skill.skill.Skill
 import org.dicio.skill.skill.SkillInfo
 import org.stypox.dicio.R
 import org.stypox.dicio.sentences.Sentences
+import org.stypox.dicio.skills.local_music.LocalMusicController
 
-object MediaInfo : SkillInfo("media") {
+class MediaInfo(
+    private val controller: LocalMusicController,
+) : SkillInfo("media") {
     override fun name(context: Context) =
         context.getString(R.string.skill_name_media)
 
@@ -24,6 +27,6 @@ object MediaInfo : SkillInfo("media") {
 
     override fun build(ctx: SkillContext): Skill<*>? {
         val data = Sentences.Media[ctx.sentencesLanguage] ?: return null
-        return MediaSkill(MediaInfo, data)
+        return MediaSkill(this, data, controller)
     }
 }

@@ -15,6 +15,7 @@ import org.stypox.dicio.io.wake.WakeState
 import org.stypox.dicio.skills.calculator.CalculatorInfo
 import org.stypox.dicio.skills.fallback.text.TextFallbackOutput
 import org.stypox.dicio.skills.lyrics.LyricsInfo
+import org.stypox.dicio.skills.local_music.PreviewLocalMusicController
 import org.stypox.dicio.skills.media.MediaInfo
 import org.stypox.dicio.skills.navigation.NavigationInfo
 import org.stypox.dicio.skills.navigation.NavigationOutput
@@ -43,7 +44,7 @@ class SkillInfoPreviews : CollectionPreviewParameterProvider<SkillInfo>(listOf(
     WeatherInfo,
     CalculatorInfo,
     TelephoneInfo,
-    MediaInfo,
+    MediaInfo(PreviewLocalMusicController),
     object : SkillInfo("test") {
         override fun name(context: Context) = "Long name lorem ipsum dolor sit amet, consectetur"
         override fun sentenceExample(context: Context) = "Long sentence ".repeat(20)

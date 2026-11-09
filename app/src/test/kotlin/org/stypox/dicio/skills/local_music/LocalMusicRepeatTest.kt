@@ -17,6 +17,14 @@ class LocalMusicRepeatTest : StringSpec({
         LocalMusicRepeat.toPlayerRepeatMode(RepeatMode.OFF) shouldBe Player.REPEAT_MODE_OFF
     }
 
+    "player repeat constants round-trip" {
+        for (mode in RepeatMode.entries) {
+            val playerMode = LocalMusicRepeat.toPlayerRepeatMode(mode)
+            LocalMusicRepeat.fromPlayerRepeatMode(playerMode) shouldBe mode
+        }
+        LocalMusicRepeat.fromPlayerRepeatMode(-1) shouldBe RepeatMode.OFF
+    }
+
     "previous moves to the previous item instead of the 3 second restart" {
         LocalMusicRepeat.MAX_SEEK_TO_PREVIOUS_POSITION_MS shouldBe Long.MAX_VALUE
         LocalMusicRepeat.MAX_SEEK_TO_PREVIOUS_POSITION_MS shouldBeGreaterThan 3_000L

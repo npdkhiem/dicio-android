@@ -12,19 +12,38 @@ enum class RepeatMode {
 }
 
 /**
+ * What an explicit next does when the current item is already the last one.
+ *
+ * [Stop] is [RepeatMode.OFF] and [RepeatMode.ONE]: do not advance. The
+ * controller pauses and stops playback, and the skill says "That was the last
+ * song". [Wrap] is [RepeatMode.ALL]: continue at the first item.
+ *
+ * ExoPlayer's [androidx.media3.common.Player.seekToNext] does nothing at that
+ * position when repeat is off, and it navigates repeat-one like off. The
+ * controller uses this function instead of relying on that no-op.
+ */
+enum class NextAtEndOutcome {
+    Stop,
+    Wrap,
+}
+
+/**
  * In-memory playlist: the given file names sorted case-insensitively by
  * [LocalMusicMatcher.normalizeName] of the file stem, plus a current index and
  * a [RepeatMode].
  *
- * Navigation semantics:
- * - **OFF** (default): [next] at the last item returns `null` (stop) and leaves
- *   the index unchanged. [previous] at the first item returns the first item
- *   (restart). [onTrackEnded] is the same as [next].
- * - **ALL**: [next] and [previous] wrap. [onTrackEnded] is the same as [next].
+ * Navigation semantics, also used by the local player
+ * ([NextAtEndOutcome], [LocalMusicRepeat]):
+ * - **OFF** (default): [next] on the last item returns `null` and leaves the
+ *   index unchanged. That is [NextAtEndOutcome.Stop]: the controller pauses
+ *   and stops, and the skill says "That was the last song". [previous] on the
+ *   first item returns the first item so playback restarts it. [onTrackEnded]
+ *   is the same as [next].
+ * - **ALL**: [next] and [previous] wrap, including [next] on the last item
+ *   ([NextAtEndOutcome.Wrap]). [onTrackEnded] is the same as [next].
  * - **ONE**: [onTrackEnded] returns the current item again. Explicit [next] /
- *   [previous] still move, with the same end-of-list behaviour as **OFF**
- *   ([next] at the last item returns `null`; [previous] at the first item
- *   restarts the first item). Wrapping is not used for explicit skips.
+ *   [previous] still move and do not wrap. [next] on the last item is the same
+ *   stop as **OFF**. [previous] on the first item restarts the first item.
  *
  * Until [playAt] succeeds, there is no current track: [next], [previous] and
  * [onTrackEnded] return `null`.
@@ -59,20 +78,13 @@ class LocalMusicQueue(
 
     fun next(): String? {
         if (tracks.isEmpty() || currentIndex < 0) return null
-        return when (repeatMode) {
-            RepeatMode.ALL -> {
-                currentIndex = if (currentIndex >= tracks.lastIndex) 0 else currentIndex + 1
-                tracks[currentIndex]
-            }
-            RepeatMode.OFF, RepeatMode.ONE -> {
-                if (currentIndex >= tracks.lastIndex) {
-                    null
-                } else {
-                    currentIndex += 1
-                    tracks[currentIndex]
-                }
-            }
+        val atEnd = currentIndex >= tracks.lastIndex
+        if (atEnd && nextAtEndOutcome(repeatMode) == NextAtEndOutcome.Stop) {
+            // Stay on the last item. The controller stops playback.
+            return null
         }
+        currentIndex = if (atEnd) 0 else currentIndex + 1
+        return tracks[currentIndex]
     }
 
     fun previous(): String? {
@@ -84,6 +96,8 @@ class LocalMusicQueue(
             }
             RepeatMode.OFF, RepeatMode.ONE -> {
                 if (currentIndex == 0) {
+                    // No previous item: restart the first one. ExoPlayer does
+                    // the same when seekToPrevious has nowhere to go.
                     tracks[0]
                 } else {
                     currentIndex -= 1
@@ -107,5 +121,10 @@ class LocalMusicQueue(
 
     companion object {
         const val NO_TRACK: Int = -1
+
+        fun nextAtEndOutcome(repeatMode: RepeatMode): NextAtEndOutcome = when (repeatMode) {
+            RepeatMode.OFF, RepeatMode.ONE -> NextAtEndOutcome.Stop
+            RepeatMode.ALL -> NextAtEndOutcome.Wrap
+        }
     }
 }

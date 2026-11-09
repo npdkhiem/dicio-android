@@ -1,35 +1,39 @@
 package org.stypox.dicio.skills.media
 
-import android.media.AudioManager
-import android.view.KeyEvent
-import androidx.core.content.ContextCompat.getSystemService
 import org.dicio.skill.context.SkillContext
+import org.dicio.skill.skill.Score
+import org.dicio.skill.skill.Skill
 import org.dicio.skill.skill.SkillInfo
 import org.dicio.skill.skill.SkillOutput
 import org.dicio.skill.standard.StandardRecognizerData
-import org.dicio.skill.standard.StandardRecognizerSkill
 import org.stypox.dicio.sentences.Sentences.Media
+import org.stypox.dicio.skills.local_music.LocalMusicCommands
+import org.stypox.dicio.skills.local_music.LocalMusicController
+import org.stypox.dicio.skills.local_music.SharedPlayback
 
-class MediaSkill(correspondingSkillInfo: SkillInfo, data: StandardRecognizerData<Media>)
-    : StandardRecognizerSkill<Media>(correspondingSkillInfo, data) {
+class MediaSkill(
+    correspondingSkillInfo: SkillInfo,
+    private val data: StandardRecognizerData<Media>,
+    private val controller: LocalMusicController,
+) : Skill<MediaUtterance>(correspondingSkillInfo, data.specificity) {
 
-    override suspend fun generateOutput(ctx: SkillContext, inputData: Media): SkillOutput {
-        val audioManager = getSystemService(ctx.android, AudioManager::class.java)
-            ?: return MediaOutput(performedAction = null) // no media session found
-
-        val key = when (inputData) {
-            is Media.Play -> KeyEvent.KEYCODE_MEDIA_PLAY
-            is Media.Pause -> KeyEvent.KEYCODE_MEDIA_PAUSE
-            is Media.Previous -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
-            is Media.Next -> KeyEvent.KEYCODE_MEDIA_NEXT
-        }
-
-        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
-        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
-        return MediaOutput(performedAction = inputData)
+    override fun score(ctx: SkillContext, input: String): Pair<Score, MediaUtterance> {
+        val (score, sentence) = data.score(ctx, input)
+        return score to MediaUtterance(sentence, input)
     }
 
-    companion object {
-        val TAG: String = MediaSkill::class.simpleName!!
+    override suspend fun generateOutput(ctx: SkillContext, inputData: MediaUtterance): SkillOutput {
+        val command = LocalMusicCommands.fromMedia(inputData.sentence, inputData.utterance)
+        return MediaOutput(SharedPlayback.perform(ctx, controller, command))
     }
 }
+
+/**
+ * [sentence] is the grammar hit. [utterance] is the raw input, because English
+ * "stop the music" and "pause the song" are both [Media.Pause], and some
+ * next/previous phrases can also score as play.
+ */
+data class MediaUtterance(
+    val sentence: Media,
+    val utterance: String,
+)
