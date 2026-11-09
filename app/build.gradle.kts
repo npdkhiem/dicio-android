@@ -33,33 +33,40 @@ android {
         applicationId = "org.stypox.dicio"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 21
-        versionName = "4.3.1"
+        versionCode = 22
+        versionName = "4.4"
         testInstrumentationRunner = "org.stypox.dicio.CustomTestRunner"
 
         vectorDrawables.useSupportLibrary = true
 
+        // One universal APK. Phones and tablets are ARM; x86/x86_64 were emulator-only.
         ndk {
-            abiFilters += arrayOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
     buildTypes {
         debug {
-            var normalizedGitBranch = gitBranch().replaceFirst("^[^A-Za-z]+", "").replace(Regex("[^0-9A-Za-z]+"), "")
-            applicationIdSuffix = ".$normalizedGitBranch"
-            versionNameSuffix = "-$normalizedGitBranch"
-
-            val isScreenshotTest = (project.findProperty("android.testInstrumentationRunnerArguments.class") as? String)
-                ?.contains("creenshot") == true
-            if (!isScreenshotTest) {
-                // only change the app name if we are not taking screenshots
-                resValue("string", "app_name", "Dicio-${gitBranch()}")
-            }
+            applyGitBranchSuffix()
         }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        // Non-debuggable R8 build that still installs over debug: same package suffix,
+        // version suffix, launcher label, and the default debug signing config.
+        // Debug stays unminified. No ABI splits.
+        create("shrunk") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            matchingFallbacks += listOf("debug", "release")
+            applyGitBranchSuffix()
         }
     }
 
@@ -231,4 +238,25 @@ fun gitBranch(): String {
         return if (head.startsWith("ref: refs/heads/")) head.removePrefix("ref: refs/heads/") else head
     }
     return Git.open(rootDir).use { it.repository.branch }
+}
+
+/**
+ * Same package suffix, version suffix, and launcher label for debug and shrunk,
+ * so a shrunk APK installs over a debug install of this branch.
+ * Screenshot tests keep the plain "Dicio" string resource (the check looks for
+ * "creenshot" in the instrumentation runner class argument).
+ */
+fun com.android.build.api.dsl.ApplicationBuildType.applyGitBranchSuffix() {
+    val normalizedGitBranch = gitBranch()
+        .replaceFirst("^[^A-Za-z]+", "")
+        .replace(Regex("[^0-9A-Za-z]+"), "")
+    applicationIdSuffix = ".$normalizedGitBranch"
+    versionNameSuffix = "-$normalizedGitBranch"
+
+    val isScreenshotTest = (project.findProperty("android.testInstrumentationRunnerArguments.class") as? String)
+        ?.contains("creenshot") == true
+    if (!isScreenshotTest) {
+        // only change the app name if we are not taking screenshots
+        resValue("string", "app_name", "Dicio-${gitBranch()}")
+    }
 }
