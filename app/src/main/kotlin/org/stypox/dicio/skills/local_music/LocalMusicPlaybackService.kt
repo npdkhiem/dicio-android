@@ -38,9 +38,11 @@ import org.stypox.dicio.MainActivity
  *
  * A player error skips to the next different item (repeat-all wraps) or stops,
  * and is logged. [PlaybackErrorCycle] does not forget a failure just because
- * the file reached [Player.STATE_READY]. If that file is the one just requested
- * by voice and it never reached READY, the next voice reply says it couldn't
- * be played. Reaching READY clears that request. See [LocalMusicPlaybackErrors].
+ * the file reached [Player.STATE_READY]; ready-then-error still counts. A later
+ * item that actually starts forgives that pass, so one good file keeps
+ * repeat-all going. If that file is the one just requested by voice and it
+ * never reached READY, the next voice reply says it couldn't be played.
+ * Reaching READY clears that request. See [LocalMusicPlaybackErrors].
  */
 @OptIn(UnstableApi::class)
 class LocalMusicPlaybackService : MediaSessionService() {
@@ -87,7 +89,10 @@ class LocalMusicPlaybackService : MediaSessionService() {
 
     private fun errorListener(player: Player) = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
-            failureCycle.onPlaybackStateChanged(playbackState)
+            failureCycle.onPlaybackStateChanged(
+                playbackState,
+                player.currentMediaItemIndex,
+            )
             if (playbackState == Player.STATE_READY) {
                 // The requested song made it out of the decoder. A later
                 // same-name file that fails must not be reported as that request.

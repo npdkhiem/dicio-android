@@ -90,6 +90,59 @@ class PlaybackErrorCycleTest : StringSpec({
         cycle.onError(3, 2, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(0)
     }
 
+    "repeat-all keeps playing when one song in the pass is good" {
+        val cycle = PlaybackErrorCycle()
+        // [bad, good, bad]. The good track reaches READY and the next item starts.
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 0)
+        cycle.onError(3, 0, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 2)
+        cycle.onError(3, 2, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(0)
+        // The first file fails again and playback returns to the good one.
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 0)
+        cycle.onError(3, 0, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 1)
+        // The next corrupt item errors while the player is still READY.
+        cycle.onError(3, 2, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(0)
+    }
+
+    "a good track is confirmed when the next ready has no index" {
+        val cycle = PlaybackErrorCycle()
+        cycle.onPlaybackStateChanged(Player.STATE_READY)
+        cycle.onError(3, 0, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY)
+        cycle.onPlaybackStateChanged(Player.STATE_READY)
+        cycle.onError(3, 2, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(0)
+    }
+
+    "after a good song a later pass where every file fails still stops" {
+        val cycle = PlaybackErrorCycle()
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 0)
+        cycle.onError(3, 0, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 2)
+        cycle.onError(3, 2, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(0)
+        // Index 2 already failed in this pass. When 0 and then 1 also fail,
+        // the next item is 2, so the pass had no success and playback stops.
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 0)
+        cycle.onError(3, 0, RepeatMode.ALL) shouldBe ErrorAction.SkipTo(1)
+        cycle.onPlaybackStateChanged(Player.STATE_READY, 1)
+        cycle.onError(3, 1, RepeatMode.ALL) shouldBe ErrorAction.Stop
+    }
+
+    "rebuffer on the same index does not forgive a failure" {
+        val cycle = PlaybackErrorCycle()
+        fun fail(index: Int): ErrorAction {
+            cycle.onPlaybackStateChanged(Player.STATE_READY, index)
+            cycle.onPlaybackStateChanged(Player.STATE_BUFFERING, index)
+            cycle.onPlaybackStateChanged(Player.STATE_READY, index)
+            return cycle.onError(3, index, RepeatMode.ALL)
+        }
+        fail(0) shouldBe ErrorAction.SkipTo(1)
+        fail(1) shouldBe ErrorAction.SkipTo(2)
+        fail(2) shouldBe ErrorAction.Stop
+    }
+
     "stopping clears the cycle so the next error can skip again" {
         val cycle = PlaybackErrorCycle()
         cycle.onPlaybackStateChanged(Player.STATE_READY)

@@ -159,4 +159,157 @@ class SongChooserTest : StringSpec({
         indexed.shouldNotBeNull()
         indexed.skill shouldBeSameInstanceAs index
     }
+
+    "a title that contains a number plays that title, not the other song" {
+        val love = listOf("Hello", "One Love")
+        listOf("one love", "the one love song").forEach { answer ->
+            SongChoice.ordinal(parser, answer).shouldBeNull()
+            SongChoice.strictIndex(parser, answer, love.size).shouldBeNull()
+            SongChoice.matchName(answer, love) shouldBe "One Love"
+        }
+        val spice = listOf("2 Become 1", "Wannabe")
+        SongChoice.ordinal(parser, "2 become 1").shouldBeNull()
+        SongChoice.matchName("2 become 1", spice) shouldBe "2 Become 1"
+
+        suspend fun played(stems: List<String>, answer: String): String {
+            val controller = ScriptedController { PlayByNameResult.Playing("$it.mp3") }
+            val index = SongChooserIndex(MockSkillInfo, stems, controller)
+            val name = SongChooserName(MockSkillInfo, stems, controller)
+            val picked = SkillRanker(listOf(MockSkill(Specificity.HIGH, 1.0f)), MockSkill(Specificity.LOW, 0.0f))
+                .apply { addBatchToTop(listOf(index, name)) }
+                .getBest(parser, answer)
+                .shouldNotBeNull()
+            picked.skill shouldBeSameInstanceAs name
+            val output = name.generateOutput(parser, SongChoice.matchName(answer, stems))
+                .shouldBeInstanceOf<LocalMusicOutput>()
+            output.getInteractionPlan(noParser) shouldBe InteractionPlan.FinishInteraction
+            controller.played.single()
+            return (output.speech as LocalMusicSpeech.Playing).name
+        }
+        played(love, "one love") shouldBe "One Love"
+        played(love, "the one love song") shouldBe "One Love"
+        played(spice, "2 become 1") shouldBe "2 Become 1"
+
+        // "one" is only an index when it is not the song's name.
+        SongChoice.matchName("one", listOf("Hello", "One")) shouldBe "One"
+        SongChoice.matchName("one", love).shouldBeNull()
+        SongChoice.ordinal(parser, "one") shouldBe 1L
+
+        // "number one" stays the first option even beside a title that contains it.
+        SongChoice.matchName("number one", love, parser).shouldBeNull()
+        SongChoice.matchName("number 2", spice, parser).shouldBeNull()
+        val helloFirst = SongChooserIndex(
+            MockSkillInfo,
+            love,
+            ScriptedController { PlayByNameResult.Playing("$it.mp3") },
+        )
+        helloFirst.score(parser, "number one") shouldBe (AlwaysBestScore to 1)
+        val wannabe = SongChooserIndex(
+            MockSkillInfo,
+            spice,
+            ScriptedController { PlayByNameResult.Playing("$it.mp3") },
+        )
+        wannabe.score(parser, "number 2") shouldBe (AlwaysBestScore to 2)
+    }
+
+    "last, other, former and latter are positions, and bare ordinals still work" {
+        val hello = listOf("Hello World", "Hello Adele")
+        listOf("the last one", "last one", "last", "the last").forEach { answer ->
+            SongChoice.ordinal(parser, answer).shouldBeNull()
+            SongChoice.strictIndex(parser, answer, hello.size) shouldBe 2L
+            SongChoice.matchName(answer, hello).shouldBeNull()
+        }
+        SongChoice.strictIndex(parser, "the last one", 3) shouldBe 3L
+        listOf("the other one", "other", "the other").forEach { answer ->
+            SongChoice.strictIndex(parser, answer, 2) shouldBe 2L
+            SongChoice.strictIndex(parser, answer, 3).shouldBeNull()
+        }
+        SongChoice.strictIndex(parser, "the former", 2) shouldBe 1L
+        SongChoice.strictIndex(parser, "former", 2) shouldBe 1L
+        SongChoice.strictIndex(parser, "the latter", 2) shouldBe 2L
+        SongChoice.strictIndex(parser, "latter", 2) shouldBe 2L
+        SongChoice.strictIndex(parser, "the former", 3).shouldBeNull()
+        SongChoice.strictIndex(parser, "the latter", 3).shouldBeNull()
+
+        val positions = mapOf(
+            "the first one" to 1L,
+            "the second one" to 2L,
+            "first" to 1L,
+            "second" to 2L,
+            "1" to 1L,
+            "2" to 2L,
+            "number one" to 1L,
+            "number 2" to 2L,
+            "one" to 1L,
+            "two" to 2L,
+            "option 2" to 2L,
+            "the second" to 2L,
+        )
+        positions.forEach { (answer, index) ->
+            SongChoice.ordinal(parser, answer) shouldBe index
+            SongChoice.strictIndex(parser, answer, hello.size) shouldBe index
+        }
+        SongChoice.strictIndex(parser, "the third one", hello.size).shouldBeNull()
+        SongChoice.strictIndex(parser, "3", hello.size).shouldBeNull()
+        SongChoice.strictIndex(parser, "0", hello.size).shouldBeNull()
+        SongChoice.ordinal(parser, "twenty one") shouldBe 21L
+
+        val controller = ScriptedController { PlayByNameResult.Playing("$it.mp3") }
+        val indexSkill = SongChooserIndex(MockSkillInfo, hello, controller)
+        val nameSkill = SongChooserName(MockSkillInfo, hello, controller)
+        val ranker = SkillRanker(
+            listOf(MockSkill(Specificity.HIGH, 1.0f)),
+            MockSkill(Specificity.LOW, 0.0f),
+        ).apply { addBatchToTop(listOf(indexSkill, nameSkill)) }
+        val picked = ranker.getBest(parser, "the last one").shouldNotBeNull()
+        picked.skill shouldBeSameInstanceAs indexSkill
+        val output = indexSkill.generateOutput(parser, 2).shouldBeInstanceOf<LocalMusicOutput>()
+        output.speech shouldBe LocalMusicSpeech.Playing("Hello Adele")
+        controller.played shouldBe listOf("Hello Adele")
+
+        val other = SongChooserIndex(MockSkillInfo, hello, ScriptedController { PlayByNameResult.Playing("$it.mp3") })
+        other.score(parser, "the other one") shouldBe (AlwaysBestScore to 2)
+    }
+
+    "short titles match the whole normalized name" {
+        val stems = listOf("Up", "Us")
+        SongChoice.matchName("up", stems) shouldBe "Up"
+        SongChoice.matchName("US", stems) shouldBe "Us"
+        SongChoice.matchName("u", stems).shouldBeNull()
+        val name = SongChooserName(MockSkillInfo, stems, ScriptedController { PlayByNameResult.Playing("$it.mp3") })
+        val (score, stem) = name.score(parser, "up")
+        score shouldBe AlwaysBestScore
+        stem shouldBe "Up"
+        val output = name.generateOutput(parser, stem).shouldBeInstanceOf<LocalMusicOutput>()
+        output.speech shouldBe LocalMusicSpeech.Playing("Up")
+    }
+
+    "stop and pause while choosing fall through to the default batch" {
+        val stems = listOf("The Sound of Silence", "The Sound of Music")
+        val index = SongChooserIndex(MockSkillInfo, stems, ScriptedController { PlayByNameResult.NoMatch(it) })
+        val name = SongChooserName(MockSkillInfo, stems, ScriptedController { PlayByNameResult.NoMatch(it) })
+        listOf("stop the music", "pause the music").forEach { answer ->
+            SongChoice.isMediaControl(answer) shouldBe true
+            SongChoice.matchName(answer, stems).shouldBeNull()
+            val (nameScore, stem) = name.score(parser, answer)
+            nameScore shouldBe AlwaysWorstScore
+            stem.shouldBeNull()
+            val (indexScore, _) = index.score(parser, answer)
+            indexScore shouldBe AlwaysWorstScore
+            val normal = MockSkill(Specificity.HIGH, 1.0f)
+            val picked = SkillRanker(listOf(normal), MockSkill(Specificity.LOW, 0.0f))
+                .apply { addBatchToTop(listOf(index, name)) }
+                .getBest(parser, answer)
+                .shouldNotBeNull()
+            picked.skill shouldBeSameInstanceAs normal
+        }
+        SongChoice.matchName("play the next song", stems).shouldBeNull()
+    }
+
+    "chooser normalization folds d and diacritics on both sides" {
+        val rain = listOf("Đêm mưa", "Mưa đêm")
+        SongChoice.matchName("dem mua", rain) shouldBe "Đêm mưa"
+        SongChoice.matchName("mua dem", rain) shouldBe "Mưa đêm"
+        SongChoice.matchName("da lat", listOf("Đà Lạt", "Hello")) shouldBe "Đà Lạt"
+    }
 })

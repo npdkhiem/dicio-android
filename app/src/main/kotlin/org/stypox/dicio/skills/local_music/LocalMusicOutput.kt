@@ -36,10 +36,12 @@ class LocalMusicOutput(
         val tie = speech as? LocalMusicSpeech.Tie ?: return InteractionPlan.FinishInteraction
         val follow = followUp ?: return InteractionPlan.FinishInteraction
         val stems = listOf(tie.a, tie.b)
-        // Index is high specificity, name is low, so "the first one" wins over
-        // a fuzzy name and an unrelated utterance matches neither. The ranker
-        // then falls through to the normal skills. Neither chooser starts
-        // another sub-interaction, so this does not loop.
+        // Index is high specificity and name is low. The index skill scores
+        // only a bare position ("the second one", "last", "2") and yields when
+        // the utterance names a stem, so "one love" plays One Love. Stop and
+        // pause phrases match neither, and the ranker falls through to the
+        // normal skills. Neither chooser starts another sub-interaction, so
+        // this does not loop.
         return InteractionPlan.StartSubInteraction(
             reopenMicrophone = true,
             nextSkills = listOf(
