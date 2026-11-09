@@ -26,6 +26,14 @@ val PERMISSION_CALL_PHONE = Permission.NormalPermission(
     name = R.string.perm_call_phone,
     id = Manifest.permission.CALL_PHONE,
 )
+val PERMISSION_READ_MEDIA_AUDIO = Permission.NormalPermission(
+    name = R.string.perm_read_music,
+    id = Manifest.permission.READ_MEDIA_AUDIO,
+)
+val PERMISSION_READ_EXTERNAL_STORAGE = Permission.NormalPermission(
+    name = R.string.perm_read_music,
+    id = Manifest.permission.READ_EXTERNAL_STORAGE,
+)
 
 /**
  * @param context the Android context

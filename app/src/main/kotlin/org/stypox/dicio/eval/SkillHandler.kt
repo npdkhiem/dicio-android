@@ -20,7 +20,9 @@ import org.stypox.dicio.skills.calculator.CalculatorInfo
 import org.stypox.dicio.skills.current_time.CurrentTimeInfo
 import org.stypox.dicio.skills.fallback.text.TextFallbackInfo
 import org.stypox.dicio.skills.listening.ListeningInfo
+import org.stypox.dicio.skills.local_music.LocalMusicController
 import org.stypox.dicio.skills.local_music.LocalMusicInfo
+import org.stypox.dicio.skills.local_music.PreviewLocalMusicController
 import org.stypox.dicio.skills.lyrics.LyricsInfo
 import org.stypox.dicio.skills.media.MediaInfo
 import org.stypox.dicio.skills.navigation.NavigationInfo
@@ -40,6 +42,7 @@ class SkillHandler @Inject constructor(
     private val dataStore: DataStore<UserSettings>,
     private val localeManager: LocaleManager,
     private val skillContext: SkillContextInternal,
+    localMusicController: LocalMusicController,
 ) {
     // TODO improve id handling (maybe just use an int that can point to an Android resource)
     val allSkillInfoList = listOf(
@@ -53,7 +56,7 @@ class SkillHandler @Inject constructor(
         TimerInfo,
         CurrentTimeInfo,
         MediaInfo,
-        LocalMusicInfo,
+        LocalMusicInfo(localMusicController),
         JokeInfo,
         ListeningInfo(dataStore),
         TranslationInfo,
@@ -103,6 +106,7 @@ class SkillHandler @Inject constructor(
                 UserSettingsModule.newDataStoreForPreviews(),
                 LocaleManager.newForPreviews(context),
                 SkillContextImpl.newForPreviews(context),
+                PreviewLocalMusicController,
             )
         }
     }

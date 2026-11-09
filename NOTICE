@@ -1,0 +1,23 @@
+Dicio
+Copyright (C) Dicio contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. The full license is in the LICENSE file.
+
+Third-party notices
+-------------------
+
+AndroidX Media3 (media3-exoplayer and media3-session), used for local music
+playback.
+Copyright (C) The Android Open Source Project
+Licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+https://github.com/androidx/media
+
+The combined work is distributed under GPL-3.0. This Apache-2.0 notice is
+retained for the Media3 components.

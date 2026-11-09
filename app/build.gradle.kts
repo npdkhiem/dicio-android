@@ -141,6 +141,7 @@ dependencies {
 
     // Android
     implementation(libs.appcompat)
+    implementation(libs.documentfile)
 
     // Compose (check out https://developer.android.com/jetpack/compose/bom/bom-mapping)
     implementation(libs.activity.compose)
@@ -198,6 +199,10 @@ dependencies {
 
     // Used by skills
     implementation(libs.exp4j)
+
+    // Local music playback. Apache-2.0; see NOTICE. GPL-3.0 still covers Dicio.
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
 
     // Testing
     testImplementation(libs.kotest.runner.junit5)

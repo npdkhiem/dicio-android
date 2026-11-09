@@ -10,35 +10,38 @@ import org.stypox.dicio.sentences.Sentences.LocalMusic
 class LocalMusicSkill(
     correspondingSkillInfo: SkillInfo,
     data: StandardRecognizerData<LocalMusic>,
-    private val controller: LocalMusicController = StubLocalMusicController,
+    private val controller: LocalMusicController,
 ) : StandardRecognizerSkill<LocalMusic>(correspondingSkillInfo, data) {
 
     override suspend fun generateOutput(ctx: SkillContext, inputData: LocalMusic): SkillOutput {
         return when (inputData) {
             is LocalMusic.PlaySong -> {
-                val name = inputData.song?.trim().orEmpty()
-                if (name.isEmpty()) {
-                    LocalMusicOutput(LocalMusicOutput.Action.MissingSong)
+                val query = inputData.song?.trim().orEmpty()
+                if (query.isEmpty()) {
+                    LocalMusicOutput(LocalMusicSpeech.MissingSong)
                 } else {
-                    controller.play(name)
-                    LocalMusicOutput(LocalMusicOutput.Action.WouldPlay(name))
+                    // A tie returns a question and the controller plays nothing.
+                    val speech = LocalMusicSpeechSelection.forPlayResult(
+                        controller.playByName(query),
+                    )
+                    LocalMusicOutput(speech)
                 }
             }
             is LocalMusic.Stop -> {
                 controller.stop()
-                LocalMusicOutput(LocalMusicOutput.Action.WouldStop)
+                LocalMusicOutput(LocalMusicSpeech.Stopped)
             }
             is LocalMusic.RepeatOne -> {
                 controller.setRepeat(RepeatMode.ONE)
-                LocalMusicOutput(LocalMusicOutput.Action.WouldSetRepeat(RepeatMode.ONE))
+                LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.ONE))
             }
             is LocalMusic.RepeatAll -> {
                 controller.setRepeat(RepeatMode.ALL)
-                LocalMusicOutput(LocalMusicOutput.Action.WouldSetRepeat(RepeatMode.ALL))
+                LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.ALL))
             }
             is LocalMusic.RepeatOff -> {
                 controller.setRepeat(RepeatMode.OFF)
-                LocalMusicOutput(LocalMusicOutput.Action.WouldSetRepeat(RepeatMode.OFF))
+                LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.OFF))
             }
         }
     }

@@ -6,23 +6,25 @@ import org.stypox.dicio.io.graphical.HeadlineSpeechSkillOutput
 import org.stypox.dicio.util.getString
 
 class LocalMusicOutput(
-    private val action: Action,
+    private val speech: LocalMusicSpeech,
 ) : HeadlineSpeechSkillOutput {
-    sealed interface Action {
-        data class WouldPlay(val name: String) : Action
-        data object WouldStop : Action
-        data class WouldSetRepeat(val mode: RepeatMode) : Action
-        data object MissingSong : Action
-    }
-
-    override fun getSpeechOutput(ctx: SkillContext): String = when (action) {
-        is Action.WouldPlay -> ctx.getString(R.string.skill_local_music_would_play, action.name)
-        is Action.WouldStop -> ctx.getString(R.string.skill_local_music_would_stop)
-        is Action.WouldSetRepeat -> when (action.mode) {
-            RepeatMode.ONE -> ctx.getString(R.string.skill_local_music_would_repeat_one)
-            RepeatMode.ALL -> ctx.getString(R.string.skill_local_music_would_repeat_all)
-            RepeatMode.OFF -> ctx.getString(R.string.skill_local_music_would_repeat_off)
+    override fun getSpeechOutput(ctx: SkillContext): String = when (speech) {
+        is LocalMusicSpeech.Playing ->
+            ctx.getString(R.string.skill_local_music_playing, speech.name)
+        is LocalMusicSpeech.NoMatch ->
+            ctx.getString(R.string.skill_local_music_no_match, speech.query)
+        is LocalMusicSpeech.Tie ->
+            ctx.getString(R.string.skill_local_music_tie, speech.a, speech.b)
+        LocalMusicSpeech.NoFolderOrEmpty ->
+            ctx.getString(R.string.skill_local_music_no_songs)
+        LocalMusicSpeech.PermissionMissing ->
+            ctx.getString(R.string.skill_local_music_permission_missing)
+        is LocalMusicSpeech.Repeat -> when (speech.mode) {
+            RepeatMode.OFF -> ctx.getString(R.string.skill_local_music_repeat_off)
+            RepeatMode.ONE -> ctx.getString(R.string.skill_local_music_repeat_one)
+            RepeatMode.ALL -> ctx.getString(R.string.skill_local_music_repeat_all)
         }
-        is Action.MissingSong -> ctx.getString(R.string.skill_local_music_missing_song)
+        LocalMusicSpeech.Stopped -> ctx.getString(R.string.skill_local_music_stopped)
+        LocalMusicSpeech.MissingSong -> ctx.getString(R.string.skill_local_music_missing_song)
     }
 }

@@ -7,6 +7,7 @@ appcompat = "1.7.1"
 coilCompose = "2.7.0"
 composeBom = "2025.09.01"
 datastore = "1.1.7"
+documentfile = "1.1.0"
 desugarJdkLibs = "2.1.5"
 # used in settings.gradle.kts for git dependencies
 dicioNumbers = "4140dfd299236270fe92b3690e220943bf801c4f"
@@ -37,6 +38,9 @@ unbescape = "1.1.6.RELEASE"
 unicodeCldrGitCommit = "41283df11cce01751c29c400a8f94d1d8687210d"
 voskAndroid = "0.3.70"
 litert = "1.4.1" # cannot update to 2.0.0 as its minSdk is 23
+# Apache-2.0. 1.8.1 is the newest stable Media3 that still supports minSdk 21.
+# Media3 1.9.0 raised its minSdk to 23. See NOTICE.
+media3 = "1.8.1"
 permissionFlow = "2.1.0"
 minSdk = "21"
 targetSdk = "36"
@@ -55,6 +59,7 @@ compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview"
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
+documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 debug-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 debug-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugarJdkLibs" }
@@ -94,6 +99,8 @@ test-ui-automator = { module = "androidx.test.uiautomator:uiautomator", version.
 unbescape = { module = "org.unbescape:unbescape", version.ref = "unbescape" }
 vosk-android = { module = "com.alphacephei:vosk-android", version.ref = "voskAndroid" }
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 permission-flow-android = { module = "dev.shreyaspatil.permission-flow:permission-flow-android", version.ref = "permissionFlow" }
 permission-flow-compose = { module = "dev.shreyaspatil.permission-flow:permission-flow-compose", version.ref = "permissionFlow" }
 
