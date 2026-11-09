@@ -1,0 +1,1 @@
+Play local music by voice: 'play song <name>' plays the best-matching file from your Music folder (or a folder picked in the Local music skill settings); supports mp3, m4a, ogg, flac and wav; pause, resume, next, previous, stop and repeat one/all/off by voice.
