@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option java_package = "org.stypox.dicio.settings.datastore";
+option java_multiple_files = true;
+
+// Private word lists. strictness_percent 0 means the default of 80.
+// disabled defaults to false, so a missing file keeps the feature on.
+message WordLists {
+    message Correction {
+        string heard = 1;
+        string correct = 2;
+    }
+
+    repeated string known_words = 1;
+    repeated Correction corrections = 2;
+    int32 strictness_percent = 3;
+    bool disabled = 4;
+}

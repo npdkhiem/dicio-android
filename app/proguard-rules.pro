@@ -27,7 +27,7 @@
 -keep class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
 
 # kotlinx.serialization, for the @Serializable navigation routes in
-# org.stypox.dicio.ui.nav.Routes (Home, MainSettings, SkillSettings, About).
+# org.stypox.dicio.ui.nav.Routes (Home, MainSettings, SkillSettings, WordLists, About).
 # The library has shipped consumer rules since 1.5. These are the official
 # app-side rules from kotlinx.serialization 1.9.0 rules/common.pro and
 # rules/r8.pro, limited to this app's classes, for R8 full mode:

@@ -304,4 +304,45 @@
     <string name="about_privacy_title">Privacy policy</string>
     <string name="about_privacy_description">Dicio connects to external services only when a skill is expected to do so, or to download machine learning models during setup. All speech processing is performed locally on-device, and most skills can be used offline.</string>
     <string name="about_privacy_link" translatable="false">https://stypox.org/dicio-privacy-policy.html</string>
+    <string name="pref_word_lists_title">Words &amp; corrections</string>
+    <string name="pref_word_lists_summary">Teach Dicio names, song titles, and fixes for words it hears wrong</string>
+    <string name="word_lists_title">Words &amp; corrections</string>
+    <string name="word_lists_enabled">Use words and corrections</string>
+    <string name="word_lists_enabled_on">Dicio fixes what it hears before choosing a command</string>
+    <string name="word_lists_enabled_off">Dicio leaves what it hears unchanged</string>
+    <string name="word_lists_strictness">Strictness</string>
+    <string name="word_lists_strictness_value">%1$d%%</string>
+    <string name="word_lists_strictness_help">Higher means fewer, safer fixes. 100%% uses your corrections only.</string>
+    <string name="word_lists_try">Try it</string>
+    <string name="word_lists_try_hint">Type a sentence</string>
+    <string name="word_lists_try_result">Result</string>
+    <string name="word_lists_tab_words">Known words</string>
+    <string name="word_lists_tab_corrections">Corrections</string>
+    <string name="word_lists_add">Add</string>
+    <string name="word_lists_save">Save</string>
+    <string name="word_lists_cancel">Cancel</string>
+    <string name="word_lists_delete">Delete</string>
+    <string name="word_lists_undo">Undo</string>
+    <string name="word_lists_deleted">Deleted</string>
+    <string name="word_lists_empty_words">No known words yet</string>
+    <string name="word_lists_empty_corrections">No corrections yet</string>
+    <string name="word_lists_add_word">Add a known word</string>
+    <string name="word_lists_edit_word">Edit known word</string>
+    <string name="word_lists_word_label">Word or title</string>
+    <string name="word_lists_add_correction">Add a correction</string>
+    <string name="word_lists_edit_correction">Edit correction</string>
+    <string name="word_lists_heard_label">When Dicio hears</string>
+    <string name="word_lists_correct_label">Change it to</string>
+    <string name="word_lists_more">More options</string>
+    <string name="word_lists_export">Export</string>
+    <string name="word_lists_import">Import</string>
+    <string name="word_lists_import_title">Import word list</string>
+    <string name="word_lists_import_replace">Replace my lists</string>
+    <string name="word_lists_import_add">Add to my lists</string>
+    <string name="word_lists_import_summary_none" tools:ignore="PluralsCandidate">Added %1$d words, %2$d corrections, skipped 0 lines</string>
+    <string name="word_lists_import_summary_one" tools:ignore="PluralsCandidate">Added %1$d words, %2$d corrections, skipped 1 line (line %3$s)</string>
+    <string name="word_lists_import_summary_many" tools:ignore="PluralsCandidate">Added %1$d words, %2$d corrections, skipped %3$d lines (line %4$s)</string>
+    <string name="word_lists_import_failed">Could not read that file</string>
+    <string name="word_lists_export_failed">Could not write that file</string>
+    <string name="word_lists_full">That list is full (%1$d)</string>
 </resources>

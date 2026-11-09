@@ -12,4 +12,7 @@ object MainSettings
 object SkillSettings
 
 @Serializable
+object WordLists
+
+@Serializable
 object About

@@ -115,4 +115,35 @@ class SkillRankerTest : StringSpec({
         gotFallback.skill shouldBeSameInstanceAs fallback
         (gotFallback.skill as MockSkill).scoreCalled.shouldBeTrue()
     }
+
+    "peekBest does not remove batches and getBest still does for a default-batch match" {
+        val top = MockSkill(Specificity.HIGH, 0.0f)
+        val cr = getRanker(MockSkill(Specificity.LOW, 0.0f), MockSkill(Specificity.HIGH, 1.0f))
+        cr.addBatchToTop(listOf(top))
+
+        val peeked = cr.peekBest(MockSkillContext, INPUT)
+        peeked shouldNotBe null
+        peeked!!.batchLevel shouldBe SkillRanker.DEFAULT_BATCH_LEVEL
+        cr.hasAnyBatches().shouldBeTrue()
+
+        cr.getBest(MockSkillContext, INPUT) shouldNotBe null
+        cr.hasAnyBatches().shouldBeFalse()
+    }
+
+    "getBest removes only batches above the matched conversation batch" {
+        val low = MockSkill(Specificity.HIGH, 1.0f)
+        val top = MockSkill(Specificity.HIGH, 0.0f)
+        val cr = getRanker(MockSkill(Specificity.LOW, 0.0f), MockSkill(Specificity.HIGH, 0.5f))
+        cr.addBatchToTop(listOf(low))
+        cr.addBatchToTop(listOf(top))
+
+        val peeked = cr.peekBest(MockSkillContext, INPUT)
+        peeked shouldNotBe null
+        peeked!!.batchLevel shouldBe 0
+        cr.hasAnyBatches().shouldBeTrue()
+
+        cr.getBest(MockSkillContext, INPUT) shouldNotBe null
+        cr.hasAnyBatches().shouldBeTrue()
+        cr.peekBest(MockSkillContext, INPUT)!!.batchLevel shouldBe 0
+    }
 })

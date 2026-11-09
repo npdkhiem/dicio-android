@@ -20,6 +20,7 @@ import org.stypox.dicio.R
 import org.stypox.dicio.io.input.stt_popup.SttPopupActivity
 import org.stypox.dicio.settings.MainSettingsScreen
 import org.stypox.dicio.settings.SkillSettingsScreen
+import org.stypox.dicio.settings.WordListsScreen
 import org.stypox.dicio.ui.about.AboutScreen
 import org.stypox.dicio.ui.home.HomeScreen
 
@@ -56,11 +57,16 @@ fun Navigation() {
             MainSettingsScreen(
                 navigationIcon = backIcon,
                 navigateToSkillSettings = { navController.navigate(SkillSettings) },
+                navigateToWordLists = { navController.navigate(WordLists) },
             )
         }
 
         composable<SkillSettings> {
             SkillSettingsScreen(navigationIcon = backIcon)
+        }
+
+        composable<WordLists> {
+            WordListsScreen(navigationIcon = backIcon)
         }
 
         composable<About> {

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,6 +50,7 @@ import org.stypox.dicio.ui.theme.AppTheme
 fun MainSettingsScreen(
     navigationIcon: @Composable () -> Unit,
     navigateToSkillSettings: () -> Unit,
+    navigateToWordLists: () -> Unit,
     viewModel: MainSettingsViewModel = hiltViewModel(),
 ) {
     Scaffold(
@@ -62,6 +64,7 @@ fun MainSettingsScreen(
     ) {
         MainSettingsScreen(
             navigateToSkillSettings = navigateToSkillSettings,
+            navigateToWordLists = navigateToWordLists,
             viewModel = viewModel,
             modifier = Modifier.padding(it),
         )
@@ -71,6 +74,7 @@ fun MainSettingsScreen(
 @Composable
 private fun MainSettingsScreen(
     navigateToSkillSettings: () -> Unit,
+    navigateToWordLists: () -> Unit,
     viewModel: MainSettingsViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -118,6 +122,16 @@ private fun MainSettingsScreen(
                 modifier = Modifier
                     .clickable(onClick = navigateToSkillSettings)
                     .testTag("skill_settings_item")
+            )
+        }
+        item {
+            SettingsItem(
+                title = stringResource(R.string.pref_word_lists_title),
+                icon = Icons.Default.Spellcheck,
+                description = stringResource(R.string.pref_word_lists_summary),
+                modifier = Modifier
+                    .clickable(onClick = navigateToWordLists)
+                    .testTag("word_lists_item")
             )
         }
 
@@ -216,6 +230,7 @@ private fun MainSettingsScreenPreview() {
         ) {
             MainSettingsScreen(
                 navigateToSkillSettings = {},
+                navigateToWordLists = {},
                 viewModel = MainSettingsViewModel(
                     application = Application(),
                     wakeDeviceWrapper = null,
@@ -243,6 +258,7 @@ private fun MainSettingsScreenWithTopBarPreview() {
                     }
                 },
                 navigateToSkillSettings = {},
+                navigateToWordLists = {},
                 viewModel = MainSettingsViewModel(
                     application = Application(),
                     wakeDeviceWrapper = null,

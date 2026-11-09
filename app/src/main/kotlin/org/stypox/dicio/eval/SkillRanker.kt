@@ -97,27 +97,43 @@ class SkillRanker(
         batches.removeAllElements()
     }
 
+    /**
+     * Best skill for [input] without changing the batch stack.
+     * [Peek.batchLevel] is the stack index, or [DEFAULT_BATCH_LEVEL] when only
+     * the default batch matched. A higher level is a newer conversation turn.
+     */
+    fun peekBest(ctx: SkillContext, input: String): Peek? {
+        for (i in batches.indices.reversed()) {
+            val skillFromBatch = batches[i].getBest(ctx, input)
+            if (skillFromBatch != null) {
+                return Peek(skillFromBatch, i)
+            }
+        }
+        val skillFromBatch = defaultBatch.getBest(ctx, input) ?: return null
+        return Peek(skillFromBatch, DEFAULT_BATCH_LEVEL)
+    }
+
+    /**
+     * Removes batches the way [getBest] does after a match at [batchLevel].
+     * Score every candidate with [peekBest] first, then commit only the winner.
+     */
+    fun commitMatch(batchLevel: Int) {
+        if (batchLevel < 0) {
+            removeAllBatches()
+            return
+        }
+        while (batches.size > batchLevel + 1) {
+            removeTopBatch()
+        }
+    }
+
     fun getBest(
         ctx: SkillContext,
         input: String,
     ): SkillWithResult<*>? {
-        for (i in batches.indices.reversed()) {
-            val skillFromBatch = batches[i].getBest(ctx, input)
-            if (skillFromBatch != null) {
-                // found a matching skill: remove all skills in batch above it
-                for (j in i + 1 until batches.size) {
-                    removeTopBatch()
-                }
-                return skillFromBatch
-            }
-        }
-
-        val skillFromBatch = defaultBatch.getBest(ctx, input)
-        if (skillFromBatch != null) {
-            // found a matching skill in the default batch: remove all other skill batches
-            removeAllBatches()
-        }
-        return skillFromBatch
+        val peek = peekBest(ctx, input) ?: return null
+        commitMatch(peek.batchLevel)
+        return peek.skill
     }
 
     fun getFallbackSkill(
@@ -131,7 +147,19 @@ class SkillRanker(
         batches.clear()
     }
 
+    /**
+     * One scored match from [SkillRanker.peekBest]. [batchLevel] is comparable
+     * across utterances: higher means "keep the current conversation".
+     */
+    data class Peek(
+        val skill: SkillWithResult<*>,
+        val batchLevel: Int,
+    )
+
     companion object {
+        /** [Peek.batchLevel] when the match came from the default skill batch. */
+        const val DEFAULT_BATCH_LEVEL = -1
+
         // various thresholds for different specificity categories (high, medium and low)
         // first round
         private const val HIGH_THRESHOLD_1 = 0.85f

@@ -19,6 +19,7 @@ import org.stypox.dicio.di.SttInputDeviceWrapper
 import org.stypox.dicio.io.graphical.ErrorSkillOutput
 import org.stypox.dicio.io.graphical.MissingPermissionsSkillOutput
 import org.stypox.dicio.io.input.InputEvent
+import org.stypox.dicio.io.input.corrections.WordListsRepository
 import org.stypox.dicio.ui.home.Interaction
 import org.stypox.dicio.ui.home.InteractionLog
 import org.stypox.dicio.ui.home.PendingQuestion
@@ -38,6 +39,7 @@ class SkillEvaluatorImpl(
     private val skillContext: SkillContextInternal,
     private val skillHandler: SkillHandler,
     private val sttInputDevice: SttInputDeviceWrapper,
+    private val wordLists: WordListsRepository,
 ) : SkillEvaluator {
 
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -96,13 +98,28 @@ class SkillEvaluatorImpl(
     }
 
     private suspend fun evaluateMatchingSkill(utterances: List<String>) {
+        val lists = wordLists.current()
+        val candidates = buildCandidates(
+            utterances = utterances,
+            correctionsEnabled = wordLists.correctionsActive(lists),
+        ) { utterance ->
+            wordLists.correctUtterance(utterance, lists)
+        }
         val (chosenInput, chosenSkill) = try {
-            utterances.firstNotNullOfOrNull { input: String ->
-                skillContext.standardMatchHelper = MatchHelper(skillContext.parserFormatter, input)
-                skillRanker.getBest(skillContext, input)?.let { skillWithResult ->
-                    Pair(input, skillWithResult)
-                }
-            } ?: Pair(utterances[0], skillRanker.getFallbackSkill(skillContext, utterances[0]))
+            val best = selectBestGuess(candidates) { input ->
+                skillContext.standardMatchHelper =
+                    MatchHelper(skillContext.parserFormatter, input)
+                skillRanker.peekBest(skillContext, input)
+            }
+            if (best != null) {
+                skillRanker.commitMatch(best.batchLevel)
+                Pair(best.input, best.skill)
+            } else {
+                val fallbackInput = utterances[0]
+                skillContext.standardMatchHelper =
+                    MatchHelper(skillContext.parserFormatter, fallbackInput)
+                Pair(fallbackInput, skillRanker.getFallbackSkill(skillContext, fallbackInput))
+            }
         } catch (throwable: Throwable) {
             addErrorInteractionFromPending(throwable)
             return
@@ -226,7 +243,72 @@ class SkillEvaluatorModule {
         skillContext: SkillContextInternal,
         skillHandler: SkillHandler,
         sttInputDevice: SttInputDeviceWrapper,
+        wordLists: WordListsRepository,
     ): SkillEvaluator {
-        return SkillEvaluatorImpl(skillContext, skillHandler, sttInputDevice)
+        return SkillEvaluatorImpl(skillContext, skillHandler, sttInputDevice, wordLists)
     }
+}
+
+/**
+ * Corrected text first (when it differs), then the original utterance.
+ * Exact duplicate strings are dropped, keeping the earlier one.
+ */
+internal fun buildCandidates(
+    utterances: List<String>,
+    correctionsEnabled: Boolean,
+    correct: (String) -> String?,
+): List<String> {
+    val result = ArrayList<String>(utterances.size)
+    val seen = HashSet<String>()
+    for (utterance in utterances) {
+        if (correctionsEnabled) {
+            val corrected = correct(utterance)
+            if (!corrected.isNullOrEmpty() && corrected != utterance && seen.add(corrected)) {
+                result.add(corrected)
+            }
+        }
+        if (seen.add(utterance)) {
+            result.add(utterance)
+        }
+    }
+    return result
+}
+
+internal data class BestGuess(
+    val index: Int,
+    val input: String,
+    val batchLevel: Int,
+    val scoreIn01Range: Float,
+    val skill: SkillWithResult<*>,
+)
+
+/**
+ * Higher conversation batch, then higher [BestGuess.scoreIn01Range], then the
+ * earlier candidate. [peek] is called once per candidate, in order.
+ */
+internal fun selectBestGuess(
+    candidates: List<String>,
+    peek: (String) -> SkillRanker.Peek?,
+): BestGuess? {
+    var best: BestGuess? = null
+    for ((index, input) in candidates.withIndex()) {
+        val found = peek(input) ?: continue
+        val guess = BestGuess(
+            index = index,
+            input = input,
+            batchLevel = found.batchLevel,
+            scoreIn01Range = found.skill.score.scoreIn01Range(),
+            skill = found.skill,
+        )
+        if (best == null || guess.beats(best)) {
+            best = guess
+        }
+    }
+    return best
+}
+
+private fun BestGuess.beats(other: BestGuess): Boolean {
+    if (batchLevel != other.batchLevel) return batchLevel > other.batchLevel
+    if (scoreIn01Range != other.scoreIn01Range) return scoreIn01Range > other.scoreIn01Range
+    return index < other.index
 }
