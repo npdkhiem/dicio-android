@@ -161,16 +161,19 @@ class LocalMusicControllerImpl @Inject constructor(
                 )
                 .build()
         }
+        val stem = playlist.getOrNull(index)
+            ?.let { LocalMusicMatcher.fileStem(it.displayName) }
         withContext(Dispatchers.Main.immediate) {
+            // Record the request before prepare. READY can arrive from the
+            // player listener as soon as the new item is prepared, and that
+            // is what clears the request (see PlaybackErrorReport.onPlayed).
+            if (!stem.isNullOrEmpty()) {
+                LocalMusicPlaybackErrors.onRequested(stem)
+            }
             controller.setMediaItems(items, index, /* startPositionMs = */ 0L)
             controller.repeatMode = LocalMusicRepeat.toPlayerRepeatMode(repeatMode)
             controller.prepare()
             controller.play()
-            val stem = playlist.getOrNull(index)
-                ?.let { LocalMusicMatcher.fileStem(it.displayName) }
-            if (!stem.isNullOrEmpty()) {
-                LocalMusicPlaybackErrors.onRequested(stem)
-            }
             applyActivity(LocalMusicActivity.Signal.UserCommand)
             refresh(controller)
         }

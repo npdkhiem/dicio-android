@@ -23,8 +23,12 @@ class MediaSkill(
     }
 
     override suspend fun generateOutput(ctx: SkillContext, inputData: MediaUtterance): SkillOutput {
+        // Consumed once here. SharedPlayback does not consume it, so a pause
+        // aimed at another app still says both "I couldn't play X" and the
+        // pause line. See CouldNotPlaySpeech.
+        val couldNotPlay = controller.consumeCouldNotPlay()
         val command = LocalMusicCommands.fromMedia(inputData.sentence, inputData.utterance)
-        return MediaOutput(SharedPlayback.perform(ctx, controller, command))
+        return MediaOutput(SharedPlayback.perform(ctx, controller, command), couldNotPlay)
     }
 }
 

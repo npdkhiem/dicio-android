@@ -8,7 +8,6 @@ import org.dicio.skill.skill.SkillOutput
 import org.dicio.skill.standard.StandardRecognizerData
 import org.stypox.dicio.sentences.Sentences.LocalMusic
 import org.stypox.dicio.skills.media.MediaOutput
-import org.stypox.dicio.skills.media.PlaybackSpeech
 
 class LocalMusicSkill(
     correspondingSkillInfo: SkillInfo,
@@ -27,51 +26,57 @@ class LocalMusicSkill(
     ): SkillOutput {
         // Shared with MediaSkill so stop / next / previous do not depend on
         // which skill the ranker picked.
-        // A song the user asked for that failed to decode is reported on this
-        // reply. The command below still runs. See LocalMusicPlaybackErrors.
+        // A song the user asked for that failed before it reached READY is
+        // prepended to this reply and consumed once. The command still runs.
+        // See LocalMusicPlaybackErrors and CouldNotPlaySpeech.
         val couldNotPlay = controller.consumeCouldNotPlay()
         LocalMusicCommands.fromLocal(inputData.sentence, inputData.utterance)?.let { command ->
             val speech = SharedPlayback.perform(ctx, controller, command)
-            return MediaOutput(couldNotPlay?.let(PlaybackSpeech::CouldNotPlay) ?: speech)
-        }
-        if (couldNotPlay != null) {
-            when (val sentence = inputData.sentence) {
-                is LocalMusic.PlaySong -> playByName(sentence)
-                LocalMusic.RepeatOne -> controller.setRepeat(RepeatMode.ONE)
-                LocalMusic.RepeatAll -> controller.setRepeat(RepeatMode.ALL)
-                LocalMusic.RepeatOff -> controller.setRepeat(RepeatMode.OFF)
-                LocalMusic.Next, LocalMusic.Previous ->
-                    error("control sentence was not mapped to a command")
-            }
-            return LocalMusicOutput(LocalMusicSpeech.CouldNotPlay(couldNotPlay))
+            return MediaOutput(speech, couldNotPlay)
         }
         return when (val sentence = inputData.sentence) {
-            is LocalMusic.PlaySong -> playByName(sentence)
+            is LocalMusic.PlaySong -> playByName(sentence, couldNotPlay)
             LocalMusic.RepeatOne -> {
                 controller.setRepeat(RepeatMode.ONE)
-                LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.ONE))
+                localOutput(LocalMusicSpeech.Repeat(RepeatMode.ONE), couldNotPlay)
             }
             LocalMusic.RepeatAll -> {
                 controller.setRepeat(RepeatMode.ALL)
-                LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.ALL))
+                localOutput(LocalMusicSpeech.Repeat(RepeatMode.ALL), couldNotPlay)
             }
             LocalMusic.RepeatOff -> {
                 controller.setRepeat(RepeatMode.OFF)
-                LocalMusicOutput(LocalMusicSpeech.Repeat(RepeatMode.OFF))
+                localOutput(LocalMusicSpeech.Repeat(RepeatMode.OFF), couldNotPlay)
             }
             LocalMusic.Next, LocalMusic.Previous ->
                 error("control sentence was not mapped to a command")
         }
     }
 
-    private suspend fun playByName(sentence: LocalMusic.PlaySong): SkillOutput {
+    private suspend fun playByName(
+        sentence: LocalMusic.PlaySong,
+        couldNotPlay: String?,
+    ): SkillOutput {
         val query = sentence.song?.trim().orEmpty()
         if (query.isEmpty()) {
-            return LocalMusicOutput(LocalMusicSpeech.MissingSong)
+            return localOutput(LocalMusicSpeech.MissingSong, couldNotPlay)
         }
         // A tie returns a question and the controller plays nothing.
         val speech = LocalMusicSpeechSelection.forPlayResult(controller.playByName(query))
-        return LocalMusicOutput(speech)
+        return localOutput(speech, couldNotPlay)
+    }
+
+    private fun localOutput(speech: LocalMusicSpeech, couldNotPlay: String?): SkillOutput {
+        val followUp = if (speech is LocalMusicSpeech.Tie) {
+            LocalMusicOutput.FollowUp(correspondingSkillInfo, controller)
+        } else {
+            null
+        }
+        return LocalMusicOutput(
+            speech = speech,
+            couldNotPlay = couldNotPlay,
+            followUp = followUp,
+        )
     }
 }
 

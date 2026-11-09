@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -33,16 +32,20 @@ import org.stypox.dicio.MainActivity
  * Notification and headset next/previous go through [EndAwarePlayer], which
  * uses [LocalMusicTransport] — the same rules as the voice path. Next on the
  * last item with repeat off or one stops playback instead of leaving the
- * song running. A player error skips to the next different item (repeat-all
- * wraps) or stops, and is logged. If that file is the one just requested by
- * voice, the next voice reply says it couldn't be played. See
- * [LocalMusicPlaybackErrors].
+ * song running. [EndAwarePlayer] is a [androidx.media3.common.ForwardingSimpleBasePlayer]:
+ * a [androidx.media3.common.ForwardingPlayer] reports ExoPlayer's commands to
+ * MediaSession unchanged, so Next disappeared on the last song. See that class.
+ *
+ * A player error skips to the next different item (repeat-all wraps) or stops,
+ * and is logged. [PlaybackErrorCycle] does not forget a failure just because
+ * the file reached [Player.STATE_READY]. If that file is the one just requested
+ * by voice and it never reached READY, the next voice reply says it couldn't
+ * be played. Reaching READY clears that request. See [LocalMusicPlaybackErrors].
  */
 @OptIn(UnstableApi::class)
 class LocalMusicPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
-    private val failedIndices = mutableSetOf<Int>()
-    private var errorDepth = 0
+    private val failureCycle = PlaybackErrorCycle()
 
     override fun onCreate() {
         super.onCreate()
@@ -84,43 +87,35 @@ class LocalMusicPlaybackService : MediaSessionService() {
 
     private fun errorListener(player: Player) = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
+            failureCycle.onPlaybackStateChanged(playbackState)
             if (playbackState == Player.STATE_READY) {
-                failedIndices.clear()
+                // The requested song made it out of the decoder. A later
+                // same-name file that fails must not be reported as that request.
+                LocalMusicPlaybackErrors.onPlayed(currentStem(player))
             }
         }
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-                failedIndices.clear()
+                // Also the reset for a brand-new play: setMediaItems replaces
+                // the playlist.
+                failureCycle.onPlaylistChanged()
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            if (errorDepth > MAX_ERROR_DEPTH) {
-                Log.w(TAG, "Couldn't recover playback; stopping", error)
-                player.stop()
-                failedIndices.clear()
-                return
-            }
-            errorDepth++
-            try {
-                recover(player, error)
-            } finally {
-                errorDepth--
-            }
+            recover(player, error)
         }
     }
 
     private fun recover(player: Player, error: PlaybackException) {
         val index = player.currentMediaItemIndex
         val stem = currentStem(player)
-        val action = LocalMusicTransport.decideOnError(
+        val action = failureCycle.onError(
             itemCount = player.mediaItemCount,
             currentIndex = index,
             repeatMode = LocalMusicRepeat.fromPlayerRepeatMode(player.repeatMode),
-            failedIndices = failedIndices,
         )
-        if (index >= 0) failedIndices.add(index)
         LocalMusicPlaybackErrors.onFailed(stem)
         when (action) {
             is LocalMusicTransport.ErrorAction.SkipTo -> {
@@ -133,56 +128,12 @@ class LocalMusicPlaybackService : MediaSessionService() {
                 Log.w(TAG, "Couldn't play $stem; stopping", error)
                 player.pause()
                 player.stop()
-                failedIndices.clear()
             }
-        }
-    }
-
-    /**
-     * Notification and headset next/previous. [Player.COMMAND_SEEK_TO_NEXT]
-     * stays available on the last item so the button is delivered, then
-     * [LocalMusicTransport] stops instead of no-oping when repeat is off or one.
-     */
-    @OptIn(UnstableApi::class)
-    private class EndAwarePlayer(player: Player) : ForwardingPlayer(player) {
-        override fun seekToNext() {
-            LocalMusicTransport.apply(this, LocalMusicTransport.decideNext(LocalMusicTransport.snapshotOf(this)))
-        }
-
-        override fun seekToNextMediaItem() = seekToNext()
-
-        override fun seekToPrevious() {
-            LocalMusicTransport.apply(
-                this,
-                LocalMusicTransport.decidePrevious(LocalMusicTransport.snapshotOf(this)),
-            )
-        }
-
-        override fun seekToPreviousMediaItem() = seekToPrevious()
-
-        override fun getAvailableCommands(): Player.Commands {
-            val commands = super.getAvailableCommands()
-            if (mediaItemCount <= 0) return commands
-            return commands.buildUpon()
-                .add(Player.COMMAND_SEEK_TO_NEXT)
-                .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                .build()
-        }
-
-        override fun isCommandAvailable(command: Int): Boolean {
-            if (mediaItemCount > 0 &&
-                (command == Player.COMMAND_SEEK_TO_NEXT ||
-                    command == Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-            ) {
-                return true
-            }
-            return super.isCommandAvailable(command)
         }
     }
 
     companion object {
         private const val TAG = "LocalMusicPlayback"
-        private const val MAX_ERROR_DEPTH = 8
 
         private fun currentStem(player: Player): String {
             val title = player.mediaMetadata.title?.toString()?.trim().orEmpty()

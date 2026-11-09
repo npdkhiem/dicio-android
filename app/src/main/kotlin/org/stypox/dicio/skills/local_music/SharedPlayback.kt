@@ -26,7 +26,7 @@ object SharedPlayback {
             hasQueue = controller.hasQueue,
             lastActiveElapsedMillis = controller.lastActiveElapsedMillis,
         )
-        val speech = when (decision) {
+        return when (decision) {
             is Decision.Local -> performLocal(controller, decision.action)
             is Decision.MediaKey -> {
                 // Media-key routing must not refresh the local activity window.
@@ -39,8 +39,6 @@ object SharedPlayback {
                 }
             }
         }
-        val failed = controller.consumeCouldNotPlay()
-        return if (failed != null) PlaybackSpeech.CouldNotPlay(failed) else speech
     }
 
     private suspend fun performLocal(

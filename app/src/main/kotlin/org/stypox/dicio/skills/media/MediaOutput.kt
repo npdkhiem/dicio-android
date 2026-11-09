@@ -4,6 +4,7 @@ import org.dicio.skill.context.SkillContext
 import org.stypox.dicio.R
 import org.stypox.dicio.io.graphical.HeadlineSpeechSkillOutput
 import org.stypox.dicio.sentences.Sentences.Media
+import org.stypox.dicio.skills.local_music.CouldNotPlaySpeech
 import org.stypox.dicio.util.getString
 
 /**
@@ -35,20 +36,28 @@ sealed interface PlaybackSpeech {
 }
 
 class MediaOutput(
-    private val speech: PlaybackSpeech,
+    internal val speech: PlaybackSpeech,
+    /** Stem that failed to decode before this reply, or null. Consumed once. */
+    internal val couldNotPlay: String? = null,
 ) : HeadlineSpeechSkillOutput {
     constructor(performedAction: Media?) : this(PlaybackSpeech.from(performedAction))
 
-    override fun getSpeechOutput(ctx: SkillContext): String = when (speech) {
-        PlaybackSpeech.Playing -> ctx.getString(R.string.skill_media_playing)
-        PlaybackSpeech.Pausing -> ctx.getString(R.string.skill_media_pausing)
-        PlaybackSpeech.Previous -> ctx.getString(R.string.skill_media_previous)
-        PlaybackSpeech.Next -> ctx.getString(R.string.skill_media_next)
-        PlaybackSpeech.NoSession -> ctx.getString(R.string.skill_media_no_media_session)
-        PlaybackSpeech.Stopped -> ctx.getString(R.string.skill_local_music_stopped)
-        PlaybackSpeech.LastSong -> ctx.getString(R.string.skill_local_music_last_song)
-        PlaybackSpeech.NothingPlaying -> ctx.getString(R.string.skill_local_music_nothing_playing)
-        is PlaybackSpeech.CouldNotPlay ->
-            ctx.getString(R.string.skill_local_music_could_not_play, speech.name)
+    override fun getSpeechOutput(ctx: SkillContext): String {
+        val reply = when (speech) {
+            PlaybackSpeech.Playing -> ctx.getString(R.string.skill_media_playing)
+            PlaybackSpeech.Pausing -> ctx.getString(R.string.skill_media_pausing)
+            PlaybackSpeech.Previous -> ctx.getString(R.string.skill_media_previous)
+            PlaybackSpeech.Next -> ctx.getString(R.string.skill_media_next)
+            PlaybackSpeech.NoSession -> ctx.getString(R.string.skill_media_no_media_session)
+            PlaybackSpeech.Stopped -> ctx.getString(R.string.skill_local_music_stopped)
+            PlaybackSpeech.LastSong -> ctx.getString(R.string.skill_local_music_last_song)
+            PlaybackSpeech.NothingPlaying -> ctx.getString(R.string.skill_local_music_nothing_playing)
+            is PlaybackSpeech.CouldNotPlay ->
+                ctx.getString(R.string.skill_local_music_could_not_play, speech.name)
+        }
+        val failure = couldNotPlay?.let {
+            ctx.getString(R.string.skill_local_music_could_not_play, it)
+        }
+        return CouldNotPlaySpeech.join(failure, reply)
     }
 }
