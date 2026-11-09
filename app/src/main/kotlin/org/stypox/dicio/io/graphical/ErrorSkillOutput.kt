@@ -20,6 +20,7 @@ import org.stypox.dicio.error.ErrorInfo
 import org.stypox.dicio.error.ErrorUtils
 import org.stypox.dicio.error.ExceptionUtils
 import org.stypox.dicio.error.UserAction
+import org.stypox.dicio.io.input.UserFacingInputException
 import org.stypox.dicio.util.getString
 
 data class ErrorSkillOutput(
@@ -27,9 +28,13 @@ data class ErrorSkillOutput(
     private val fromSkillEvaluation: Boolean,
 ) : SkillOutput {
     private val isNetworkError = ExceptionUtils.isNetworkError(throwable)
+    private val userMessage = (throwable as? UserFacingInputException)
+        ?.message
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
 
     override fun getSpeechOutput(ctx: SkillContext): String =
-        if (isNetworkError) {
+        userMessage ?: if (isNetworkError) {
             ctx.getString(R.string.eval_network_error_description)
         } else if (fromSkillEvaluation) {
             ctx.getString(R.string.eval_fatal_error)
@@ -39,6 +44,16 @@ data class ErrorSkillOutput(
 
     @Composable
     override fun GraphicalOutput(ctx: SkillContext) {
+        val direct = userMessage
+        if (direct != null) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Headline(text = direct)
+            }
+            return
+        }
         if (isNetworkError) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

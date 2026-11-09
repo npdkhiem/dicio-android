@@ -14,8 +14,9 @@ import javax.inject.Singleton
  * Cached word lists for [org.stypox.dicio.eval.SkillEvaluator]. The cache is
  * updated from DataStore, so scoring an utterance does not read disk.
  *
- * The next input phase should call [recognizerHints] for
- * `RecognizerIntent.EXTRA_BIASING_STRINGS`. Tune [MAX_RECOGNIZER_HINTS] here.
+ * Android speech calls [recognizerHints] for
+ * `RecognizerIntent.EXTRA_BIASING_STRINGS`, and only for an on-device
+ * recognizer. Tune [MAX_RECOGNIZER_HINTS] here.
  * Pass music titles with the most useful ones first. This app does not store
  * play counts, so the caller has to choose that order.
  */

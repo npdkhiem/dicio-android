@@ -6,17 +6,20 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.BreakfastDining
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.InvertColors
 import androidx.compose.material.icons.filled.KeyboardAlt
+import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Minimize
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.SettingsVoice
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -24,6 +27,8 @@ import androidx.compose.material.icons.filled.SpeakerPhone
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import org.stypox.dicio.R
+import org.stypox.dicio.io.input.android_stt.InstalledRecognizer
+import org.stypox.dicio.io.input.android_stt.RecognizerChooser
 import org.stypox.dicio.settings.datastore.InputDevice
 import org.stypox.dicio.settings.datastore.Language
 import org.stypox.dicio.settings.datastore.SpeechOutputDevice
@@ -115,6 +120,12 @@ fun inputDevice() = ListSetting(
             icon = Icons.Default.Mic,
         ),
         ListSetting.Value(
+            value = InputDevice.INPUT_DEVICE_ANDROID_STT,
+            name = stringResource(R.string.pref_input_method_android_stt),
+            description = stringResource(R.string.pref_input_method_android_stt_summary),
+            icon = Icons.Default.KeyboardVoice,
+        ),
+        ListSetting.Value(
             value = InputDevice.INPUT_DEVICE_EXTERNAL_POPUP,
             name = stringResource(R.string.pref_input_method_external_popup),
             description = stringResource(R.string.pref_input_method_external_popup_summary),
@@ -127,6 +138,51 @@ fun inputDevice() = ListSetting(
         ),
     ),
 )
+
+@Composable
+fun androidSttServiceSetting(services: List<InstalledRecognizer>) = ListSetting(
+    title = stringResource(R.string.pref_android_stt_service),
+    icon = Icons.Default.SettingsVoice,
+    description = stringResource(R.string.pref_android_stt_service_summary),
+    possibleValues = buildList {
+        add(
+            ListSetting.Value(
+                value = RecognizerChooser.AUTOMATIC,
+                name = stringResource(R.string.pref_android_stt_service_automatic),
+                description = stringResource(R.string.pref_android_stt_service_automatic_summary),
+            )
+        )
+        for (service in services) {
+            val name = service.label.ifBlank {
+                stringResource(R.string.pref_android_stt_service_unnamed)
+            }
+            add(
+                ListSetting.Value(
+                    value = RecognizerChooser.componentFlat(service.packageName, service.serviceName),
+                    name = name,
+                    description = service.packageName,
+                )
+            )
+        }
+    },
+)
+
+@Composable
+fun androidSttPreferOfflineSetting(onDeviceAvailable: Boolean): BooleanSetting {
+    val availability = stringResource(
+        if (onDeviceAvailable) {
+            R.string.pref_android_stt_offline_available
+        } else {
+            R.string.pref_android_stt_offline_not_available
+        }
+    )
+    return BooleanSetting(
+        title = stringResource(R.string.pref_android_stt_offline),
+        icon = Icons.Default.CloudOff,
+        descriptionOff = stringResource(R.string.pref_android_stt_offline_summary, availability),
+        descriptionOn = stringResource(R.string.pref_android_stt_offline_summary_on, availability),
+    )
+}
 
 @Composable
 fun wakeDevice() = ListSetting(

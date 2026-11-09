@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat.getSystemService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -47,6 +48,16 @@ class WakeService : Service() {
     private val scope = CoroutineScope(Dispatchers.Default + job)
 
     private val listening = AtomicBoolean(false)
+
+    /** Wakes the audio loop while Android speech holds the microphone. */
+    private val micGate = Object()
+    private val recordLock = Any()
+
+    @Volatile
+    private var wakeRecorder: AudioRecord? = null
+
+    @Volatile
+    private var wakeRecording = false
 
     @Inject
     lateinit var skillEvaluator: SkillEvaluator
@@ -87,6 +98,7 @@ class WakeService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP_WAKE_SERVICE) {
             listening.set(false)
+            signalWakeLoop()
             return START_NOT_STICKY
         }
 
@@ -130,6 +142,7 @@ class WakeService : Service() {
 
     override fun onDestroy() {
         listening.set(false)
+        signalWakeLoop()
         job.cancel()
         wakeDevice.reinitializeToReleaseResources()
         super.onDestroy()
@@ -194,30 +207,144 @@ class WakeService : Service() {
             AudioFormat.ENCODING_PCM_16BIT,
             6400,
         )
+        wakeRecorder = ar
 
         var audio = ShortArray(0)
         var nextWakeWordAllowed = Instant.MIN
+        // A button press sets the exclusive flag on another thread. Stopping the
+        // recorder unblocks a read() that would otherwise sit on the microphone.
+        val watcher: Job = scope.launch {
+            sttInputDevice.isUsingMicExclusively.collect { busy ->
+                if (busy) stopWakeRecorder()
+                signalWakeLoop()
+            }
+        }
 
         try {
-            ar.startRecording()
             while (listening.get()) {
+                if (sttInputDevice.isUsingMicExclusively.value) {
+                    pauseUntilMicFree()
+                    if (!listening.get()) break
+                }
+                startWakeRecorder()
+
                 if (audio.size != wakeDevice.frameSize()) {
                     audio = ShortArray(wakeDevice.frameSize())
                 }
 
-                ar.read(audio, 0, audio.size)
+                val read = try {
+                    ar.read(audio, 0, audio.size)
+                } catch (_: IllegalStateException) {
+                    -1
+                }
+                // Keep the service "running" through a pause, including a read
+                // that returned because the recorder was stopped.
+                lastHeard.set(Instant.now())
+                if (read < 0) {
+                    // A stopped recorder must not be fed to the wake model, and
+                    // a failed read must not spin. Vosk never stops the recorder,
+                    // so a normal read (including a short one) still falls through.
+                    if (!sttInputDevice.isUsingMicExclusively.value && listening.get()) {
+                        synchronized(micGate) {
+                            if (listening.get()) {
+                                try {
+                                    micGate.wait(READ_BACKOFF_MILLIS)
+                                } catch (_: InterruptedException) {
+                                }
+                            }
+                        }
+                    }
+                    continue
+                }
 
                 val wakeWordDetected = wakeDevice.processFrame(audio)
                 if (wakeWordDetected && Instant.now() > nextWakeWordAllowed) {
                     nextWakeWordAllowed = Instant.now().plusMillis(WAKE_WORD_BACKOFF_MILLIS)
+                    // Stop before tryLoad. Android speech claims the mic on this
+                    // same thread, then starts the recognizer on the main thread.
+                    if (sttInputDevice.pausesWakeRecorder()) {
+                        stopWakeRecorder()
+                    }
                     onWakeWordDetected()
+                    if (sttInputDevice.pausesWakeRecorder()) {
+                        pauseUntilMicFree()
+                    }
                 }
-
-                lastHeard.set(Instant.now())
             }
         } finally {
-            ar.stop()
-            ar.release()
+            watcher.cancel()
+            releaseWakeRecorder()
+        }
+    }
+
+    /**
+     * Block until Android speech releases the microphone, or the service stops.
+     * [lastHeard] is refreshed so [isRunning] stays true. The wait has a timeout
+     * so this thread cannot spin and cannot sleep forever if a signal is missed.
+     */
+    private fun pauseUntilMicFree() {
+        while (listening.get() && sttInputDevice.isUsingMicExclusively.value) {
+            lastHeard.set(Instant.now())
+            synchronized(micGate) {
+                if (listening.get() && sttInputDevice.isUsingMicExclusively.value) {
+                    try {
+                        micGate.wait(MIC_PAUSE_WAIT_MILLIS)
+                    } catch (_: InterruptedException) {
+                        // onDestroy may interrupt; the loop checks listening.
+                    }
+                }
+            }
+        }
+    }
+
+    private fun signalWakeLoop() {
+        synchronized(micGate) { micGate.notifyAll() }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startWakeRecorder() {
+        synchronized(recordLock) {
+            val ar = wakeRecorder ?: return
+            if (wakeRecording) return
+            try {
+                ar.startRecording()
+                wakeRecording = true
+            } catch (t: Throwable) {
+                wakeRecording = false
+                Log.w(TAG, "Could not resume wake recorder: ${t.javaClass.simpleName}")
+            }
+        }
+    }
+
+    private fun stopWakeRecorder() {
+        synchronized(recordLock) {
+            val ar = wakeRecorder ?: return
+            if (!wakeRecording) return
+            wakeRecording = false
+            try {
+                ar.stop()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Could not pause wake recorder: ${t.javaClass.simpleName}")
+            }
+        }
+    }
+
+    private fun releaseWakeRecorder() {
+        synchronized(recordLock) {
+            val ar = wakeRecorder
+            wakeRecorder = null
+            if (ar == null) return
+            if (wakeRecording) {
+                wakeRecording = false
+                try {
+                    ar.stop()
+                } catch (_: Throwable) {
+                }
+            }
+            try {
+                ar.release()
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -364,6 +491,9 @@ class WakeService : Service() {
         private const val START_NOTIFICATION_ID = 48019274
         private const val TRIGGERED_NOTIFICATION_ID = 601398647
         private const val WAKE_WORD_BACKOFF_MILLIS = 4000L
+        /** Shorter than the 500 ms window used by [isRunning]. */
+        private const val MIC_PAUSE_WAIT_MILLIS = 250L
+        private const val READ_BACKOFF_MILLIS = 50L
         private const val ACTION_STOP_WAKE_SERVICE =
             "org.stypox.dicio.io.wake.WakeService.ACTION_STOP"
         private const val RELEASE_STT_RESOURCES_MILLIS = 1000L * 60 * 5 // 5 minutes

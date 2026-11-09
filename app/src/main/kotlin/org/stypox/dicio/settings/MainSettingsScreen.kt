@@ -26,7 +26,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.stypox.dicio.R
 import org.stypox.dicio.io.input.SttInputDevice
+import org.stypox.dicio.io.input.android_stt.RecognizerCatalog
+import org.stypox.dicio.io.input.android_stt.RecognizerChooser
 import org.stypox.dicio.settings.datastore.InputDevice
 import org.stypox.dicio.settings.datastore.Language
 import org.stypox.dicio.settings.datastore.SpeechOutputDevice
@@ -83,6 +87,34 @@ private fun MainSettingsScreen(
         if (it != null) {
             viewModel.addOwwUserWakeFile(it)
         }
+    }
+    // Outside the lazy list: remember is not allowed inside a LazyListScope.
+    // A bare Application() in previews has no package manager, so failures
+    // become an empty picker instead of a crash.
+    val context = LocalContext.current
+    val androidRecognizers = remember(context) {
+        runCatching { RecognizerCatalog.listInstalled(context) }.getOrDefault(emptyList())
+    }
+    val androidOnDevice = remember(context) {
+        runCatching { RecognizerCatalog.onDeviceAvailable(context) }.getOrDefault(false)
+    }
+    val shownInputDevice = when (val inputDevice = settings.inputDevice) {
+        InputDevice.UNRECOGNIZED,
+        InputDevice.INPUT_DEVICE_UNSET -> InputDevice.INPUT_DEVICE_VOSK
+        else -> inputDevice
+    }
+    val storedService = settings.androidSttService
+    val shownService = if (
+        storedService.isEmpty() ||
+        androidRecognizers.any {
+            RecognizerChooser.matchesComponent(storedService, it.packageName, it.serviceName)
+        }
+    ) {
+        storedService
+    } else {
+        // The saved component is gone. Show Automatic, and leave the store alone
+        // until the user picks a service.
+        RecognizerChooser.AUTOMATIC
     }
 
     LazyColumn(modifier) {
@@ -139,13 +171,23 @@ private fun MainSettingsScreen(
         item { SettingsCategoryTitle(stringResource(R.string.pref_io)) }
         item {
             inputDevice().Render(
-                when (val inputDevice = settings.inputDevice) {
-                    InputDevice.UNRECOGNIZED,
-                    InputDevice.INPUT_DEVICE_UNSET -> InputDevice.INPUT_DEVICE_VOSK
-                    else -> inputDevice
-                },
+                shownInputDevice,
                 viewModel::setInputDevice,
             )
+        }
+        if (shownInputDevice == InputDevice.INPUT_DEVICE_ANDROID_STT) {
+            item {
+                androidSttServiceSetting(androidRecognizers).Render(
+                    shownService,
+                    viewModel::setAndroidSttService,
+                )
+            }
+            item {
+                androidSttPreferOfflineSetting(androidOnDevice).Render(
+                    settings.androidSttPreferOffline,
+                    viewModel::setAndroidSttPreferOffline,
+                )
+            }
         }
         val wakeDevice = when (val device = settings.wakeDevice) {
             WakeDevice.UNRECOGNIZED,

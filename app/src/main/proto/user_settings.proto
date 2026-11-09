@@ -21,4 +21,11 @@ message UserSettings {
     WakeDevice wake_device = 8;
     SttPlaySound stt_play_sound = 9;
     int32 stt_silence_duration = 10;
+    // Empty means Automatic. A flattened component name (package/class) picks one
+    // RecognitionService. Dicio's own service is never used, even if it is stored here.
+    string android_stt_service = 11;
+    // When true, prefer on-device recognition. Default false.
+    bool android_stt_prefer_offline = 12;
+    // 0 means the default of 5 guesses.
+    int32 android_stt_max_results = 13;
 }

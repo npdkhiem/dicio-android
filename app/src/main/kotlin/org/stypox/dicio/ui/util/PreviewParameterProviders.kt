@@ -124,6 +124,7 @@ class SttStatesPreviews : CollectionPreviewParameterProvider<SttState>(listOf(
     SttState.NoMicrophonePermission,
     SttState.NotInitialized,
     SttState.NotAvailable,
+    SttState.Unavailable("No speech recognizer found"),
     SttState.NotDownloaded,
     SttState.Downloading(Progress(0, 3, 987654, 0)),
     SttState.Downloading(Progress(5, 0, 987654, 0)),

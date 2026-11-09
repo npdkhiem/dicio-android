@@ -22,9 +22,13 @@ import org.stypox.dicio.R
 import org.stypox.dicio.io.input.InputEvent
 import org.stypox.dicio.io.input.SttInputDevice
 import org.stypox.dicio.io.input.SttState
+import org.stypox.dicio.io.input.android_stt.AndroidSttInputDevice
+import org.stypox.dicio.io.input.android_stt.MusicTitleCache
+import org.stypox.dicio.io.input.corrections.WordListsRepository
 import org.stypox.dicio.io.input.external_popup.ExternalPopupInputDevice
 import org.stypox.dicio.io.input.vosk.VoskInputDevice
 import org.stypox.dicio.settings.datastore.InputDevice
+import org.stypox.dicio.settings.datastore.InputDevice.INPUT_DEVICE_ANDROID_STT
 import org.stypox.dicio.settings.datastore.InputDevice.INPUT_DEVICE_EXTERNAL_POPUP
 import org.stypox.dicio.settings.datastore.InputDevice.INPUT_DEVICE_NOTHING
 import org.stypox.dicio.settings.datastore.InputDevice.INPUT_DEVICE_UNSET
@@ -39,6 +43,18 @@ import org.stypox.dicio.util.toStateFlowDistinctBlockingFirst
 interface SttInputDeviceWrapper {
     val uiState: StateFlow<SttState?>
 
+    /**
+     * True only while Android speech is holding the microphone.
+     * Vosk and the popup device leave this false.
+     */
+    val isUsingMicExclusively: StateFlow<Boolean>
+
+    /**
+     * True when the active device is Android speech, so the wake recorder
+     * must be stopped before that device starts listening.
+     */
+    fun pausesWakeRecorder(): Boolean
+
     fun tryLoad(thenStartListeningEventListener: ((InputEvent) -> Unit)?): Boolean
 
     fun stopListening()
@@ -50,22 +66,28 @@ interface SttInputDeviceWrapper {
 
 class SttInputDeviceWrapperImpl(
     @param:ApplicationContext private val appContext: Context,
-    dataStore: DataStore<UserSettings>,
+    private val dataStore: DataStore<UserSettings>,
     private val localeManager: LocaleManager,
     private val okHttpClient: OkHttpClient,
     private val activityForResultManager: ActivityForResultManager,
+    private val wordLists: WordListsRepository,
+    private val musicTitles: MusicTitleCache,
 ) : SttInputDeviceWrapper {
     private val scope = CoroutineScope(Dispatchers.Default)
 
     private var inputDeviceSetting: InputDevice
     private var sttPlaySoundSetting: SttPlaySound
     private val silencesBeforeStop: StateFlow<Int>
+    @Volatile
     private var sttInputDevice: SttInputDevice?
 
     // null means that the user has not enabled any STT input device
     private val _uiState: MutableStateFlow<SttState?> = MutableStateFlow(null)
     override val uiState: StateFlow<SttState?> = _uiState
     private var uiStateJob: Job? = null
+
+    private val _isUsingMicExclusively = MutableStateFlow(false)
+    override val isUsingMicExclusively: StateFlow<Boolean> = _isUsingMicExclusively
 
 
     init {
@@ -103,15 +125,30 @@ class SttInputDeviceWrapperImpl(
     }
 
     private fun buildInputDevice(setting: InputDevice): SttInputDevice? {
+        if (setting != INPUT_DEVICE_ANDROID_STT) {
+            _isUsingMicExclusively.value = false
+        }
         return when (setting) {
             UNRECOGNIZED,
             INPUT_DEVICE_UNSET,
             INPUT_DEVICE_VOSK -> VoskInputDevice(appContext, okHttpClient, localeManager, silencesBeforeStop)
             INPUT_DEVICE_EXTERNAL_POPUP ->
                 ExternalPopupInputDevice(appContext, activityForResultManager, localeManager)
+            INPUT_DEVICE_ANDROID_STT -> AndroidSttInputDevice(
+                context = appContext,
+                localeManager = localeManager,
+                dataStore = dataStore,
+                wordLists = wordLists,
+                musicTitles = musicTitles,
+                // Same thread as the device, so WakeService sees the mic claim
+                // before tryLoad returns.
+                onExclusiveMic = { using -> _isUsingMicExclusively.value = using },
+            )
             INPUT_DEVICE_NOTHING -> null
         }
     }
+
+    override fun pausesWakeRecorder(): Boolean = sttInputDevice is AndroidSttInputDevice
 
     private suspend fun restartUiStateJob() {
         uiStateJob?.cancel()
@@ -188,9 +225,17 @@ class SttInputDeviceWrapperModule {
         localeManager: LocaleManager,
         okHttpClient: OkHttpClient,
         activityForResultManager: ActivityForResultManager,
+        wordLists: WordListsRepository,
+        musicTitles: MusicTitleCache,
     ): SttInputDeviceWrapper {
         return SttInputDeviceWrapperImpl(
-            appContext, dataStore, localeManager, okHttpClient, activityForResultManager
+            appContext,
+            dataStore,
+            localeManager,
+            okHttpClient,
+            activityForResultManager,
+            wordLists,
+            musicTitles,
         )
     }
 }

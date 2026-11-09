@@ -75,4 +75,8 @@ class MainSettingsViewModel @Inject constructor(
         updateData { it.setSttSilenceDuration(value) }
     fun setAutoFinishSttPopup(value: Boolean) =
         updateData { it.setAutoFinishSttPopup(value) }
+    fun setAndroidSttService(value: String) =
+        updateData { it.setAndroidSttService(value) }
+    fun setAndroidSttPreferOffline(value: Boolean) =
+        updateData { it.setAndroidSttPreferOffline(value) }
 }

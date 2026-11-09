@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.stypox.dicio.io.input.android_stt.MusicTitleCache
 import org.stypox.dicio.skills.local_music.LocalMusicInfo.Companion.localMusicDataStore
 import org.stypox.dicio.util.checkPermissions
 import java.util.concurrent.Executor
@@ -39,6 +40,7 @@ import kotlin.coroutines.resumeWithException
 @Singleton
 class LocalMusicControllerImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val musicTitles: MusicTitleCache,
 ) : LocalMusicController {
     private val connectionMutex = Mutex()
     private val mainExecutor = Executor { command ->
@@ -87,6 +89,8 @@ class LocalMusicControllerImpl @Inject constructor(
             Log.w(TAG, "Cannot list music", e)
             return PlayByNameResult.NoFolderOrEmpty
         }
+        // Reuse this scan for on-device recognizer hints. No play counts exist.
+        musicTitles.rememberDisplayNames(files.map { it.displayName })
         val playlist = LocalMusicPlaylist.fromTracks(files)
         return when (val resolved = LocalMusicPlaylist.resolve(query, playlist.map { it.displayName })) {
             is LocalMusicPlaylist.ResolvedPlay.Empty -> PlayByNameResult.NoFolderOrEmpty

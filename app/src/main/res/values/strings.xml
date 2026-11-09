@@ -21,6 +21,7 @@
     <string name="unzipping">Unzipping…</string>
     <string name="download">Download</string>
     <string name="stt_not_available">Speech to Text not available</string>
+    <string name="stt_android_not_available">No speech recognizer found. Install or enable a speech service, or switch the input method to Vosk.</string>
     <string name="stt_download">Download Speech to Text</string>
     <string name="stt_unzip">Unzip Speech to Text</string>
     <string name="listening">Listening…</string>
@@ -83,6 +84,18 @@
     <string name="pref_input_method_vosk_summary">Downloads and runs a Vosk SpeechToText model offline inside Dicio</string>
     <string name="pref_input_method_external_popup">External SpeechToText popup</string>
     <string name="pref_input_method_external_popup_summary">Opens the UI of another app through ACTION\u200B_\u200BRECOGNIZE\u200B_\u200BSPEECH, for example whisperIME, Kõnele, Futo Voice Input</string>
+    <string name="pref_input_method_android_stt">Android / Google speech (no pop-up)</string>
+    <string name="pref_input_method_android_stt_summary">Listens right away, with no pop-up. Audio goes to the speech service you choose, usually Google, unless offline-only is on. Vosk stays the fully offline choice.</string>
+    <string name="pref_android_stt_service">Speech service</string>
+    <string name="pref_android_stt_service_summary">Which app turns speech into text</string>
+    <string name="pref_android_stt_service_automatic">Automatic</string>
+    <string name="pref_android_stt_service_automatic_summary">Google Speech Recognition and Synthesis first, then the Google app, then the system default. Dicio is never used.</string>
+    <string name="pref_android_stt_service_unnamed">Unnamed speech service</string>
+    <string name="pref_android_stt_offline">Offline (on-device) only</string>
+    <string name="pref_android_stt_offline_summary">Ask the selected service for speech. Audio may go to that service, usually Google. Offline speech: %1$s</string>
+    <string name="pref_android_stt_offline_summary_on">Use on-device speech when this phone has it. Otherwise the selected service is asked to stay offline. Offline speech: %1$s</string>
+    <string name="pref_android_stt_offline_available">available</string>
+    <string name="pref_android_stt_offline_not_available">not available</string>
     <string name="pref_speech_output_method">Speech output method</string>
     <string name="pref_speech_output_method_summary">Choose the service Dicio should use to talk to you</string>
     <string name="pref_speech_output_method_android">Android text to speech engine</string>

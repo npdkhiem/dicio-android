@@ -50,6 +50,7 @@ import org.stypox.dicio.io.input.SttState.NotAvailable
 import org.stypox.dicio.io.input.SttState.NotDownloaded
 import org.stypox.dicio.io.input.SttState.NotInitialized
 import org.stypox.dicio.io.input.SttState.NotLoaded
+import org.stypox.dicio.io.input.SttState.Unavailable
 import org.stypox.dicio.io.input.SttState.Unzipping
 import org.stypox.dicio.io.input.SttState.WaitingForResult
 import org.stypox.dicio.ui.theme.AppTheme
@@ -72,9 +73,11 @@ fun SttFab(
     val microphonePermission by rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val launcher = rememberPermissionFlowRequestLauncher()
 
-    // the NoMicrophonePermission state should override any other state, except for the NotAvailable
-    // state which indicates that the STT engine can't be made available for this locale
-    val useNoMicPermState = !microphonePermission.isGranted && state != NotAvailable
+    // the NoMicrophonePermission state should override any other state, except when the
+    // engine itself cannot be made available (NotAvailable / Unavailable)
+    val useNoMicPermState = !microphonePermission.isGranted &&
+        state != NotAvailable &&
+        state !is Unavailable
     SttFabImpl(
         state = if (useNoMicPermState) NoMicrophonePermission else state,
         onClick = if (useNoMicPermState)
@@ -119,6 +122,7 @@ private fun sttFabText(state: SttState): String {
         NoMicrophonePermission -> stringResource(R.string.grant_microphone_permission)
         NotInitialized -> ""
         NotAvailable -> stringResource(R.string.stt_not_available)
+        is Unavailable -> state.message
         NotDownloaded -> stringResource(R.string.stt_download)
         is Downloading -> loadingProgressString(LocalContext.current, state.progress)
         is ErrorDownloading -> stringResource(R.string.error_downloading)
@@ -140,6 +144,7 @@ private fun SttFabIcon(state: SttState, contentDescription: String) {
         NoMicrophonePermission -> Icon(Icons.Default.Warning, contentDescription)
         NotInitialized -> SmallCircularProgressIndicator()
         NotAvailable -> Icon(Icons.Default.Warning, contentDescription)
+        is Unavailable -> Icon(Icons.Default.Warning, contentDescription)
         NotDownloaded -> Icon(Icons.Default.Download, contentDescription)
         is Downloading -> LoadingProgress(state.progress)
         is ErrorDownloading -> Icon(Icons.Default.Error, contentDescription)

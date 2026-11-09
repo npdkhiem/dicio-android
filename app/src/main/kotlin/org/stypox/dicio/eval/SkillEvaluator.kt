@@ -19,6 +19,7 @@ import org.stypox.dicio.di.SttInputDeviceWrapper
 import org.stypox.dicio.io.graphical.ErrorSkillOutput
 import org.stypox.dicio.io.graphical.MissingPermissionsSkillOutput
 import org.stypox.dicio.io.input.InputEvent
+import org.stypox.dicio.io.input.UserFacingInputException
 import org.stypox.dicio.io.input.corrections.WordListsRepository
 import org.stypox.dicio.ui.home.Interaction
 import org.stypox.dicio.ui.home.InteractionLog
@@ -199,6 +200,15 @@ class SkillEvaluatorImpl(
     private fun addErrorInteractionFromPending(throwable: Throwable) {
         Log.e(TAG, "Error while evaluating skills", throwable)
         addInteractionFromPending(ErrorSkillOutput(throwable, true))
+        // Other failures stay silent, as before. A sentence we wrote for the
+        // user (no internet, no microphone) is spoken as well as shown.
+        val speech = (throwable as? UserFacingInputException)?.message?.trim().orEmpty()
+        if (speech.isEmpty()) return
+        scope.launch {
+            withContext(Dispatchers.Main) {
+                skillContext.speechOutputDevice.speak(speech)
+            }
+        }
     }
 
     private fun addInteractionFromPending(skillOutput: SkillOutput) {

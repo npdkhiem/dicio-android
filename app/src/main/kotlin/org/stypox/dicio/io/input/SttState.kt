@@ -45,6 +45,12 @@ sealed interface SttState {
     data object NotAvailable : SttState
 
     /**
+     * Same idea as [NotAvailable], with a message the microphone button can show.
+     * [message] is already localized.
+     */
+    data class Unavailable(val message: String) : SttState
+
+    /**
      * The model is not present on disk, neither in unzipped and in zipped form.
      */
     data object NotDownloaded : SttState
