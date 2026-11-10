@@ -1,6 +1,7 @@
 package org.stypox.dicio.io.input.android_stt
 
 import org.stypox.dicio.io.input.InputEvent
+import org.stypox.dicio.io.input.LastPartialFallback
 import org.stypox.dicio.io.input.UserFacingInputException
 
 /**
@@ -64,6 +65,15 @@ object AndroidSttResults {
         }
         if (utterances.isEmpty()) return InputEvent.None
         return InputEvent.Final(utterances)
+    }
+
+    /**
+     * Turns a trailing [InputEvent.None] into [InputEvent.Final] when a
+     * non-blank partial was heard. One implementation lives in
+     * [LastPartialFallback]; this delegates so Android STT and Vosk share it.
+     */
+    fun withLastPartial(event: InputEvent, lastPartial: String?): InputEvent {
+        return LastPartialFallback.withLastPartial(event, lastPartial)
     }
 
     /**

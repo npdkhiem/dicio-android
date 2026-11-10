@@ -34,6 +34,7 @@ import okhttp3.OkHttpClient
 import org.stypox.dicio.BuildConfig
 import org.stypox.dicio.di.LocaleManager
 import org.stypox.dicio.io.input.InputEvent
+import org.stypox.dicio.io.input.LastPartialFallback
 import org.stypox.dicio.io.input.SttInputDevice
 import org.stypox.dicio.io.input.SttState
 import org.stypox.dicio.io.input.vosk.VoskState.Downloaded
@@ -420,8 +421,11 @@ class VoskInputDevice(
         speechService: SpeechService,
         eventListener: (InputEvent) -> Unit,
     ) {
-        _state.value = Listening(speechService, eventListener)
-        speechService.startListening(VoskListener(this, eventListener, silencesBeforeStop.value, speechService))
+        val wrapped = LastPartialFallback(eventListener)
+        _state.value = Listening(speechService, wrapped)
+        speechService.startListening(
+            VoskListener(this, wrapped, silencesBeforeStop.value, speechService),
+        )
     }
 
     /**

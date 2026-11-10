@@ -152,11 +152,13 @@ object DicioSttTiming {
         resultCount: Int,
         errorCode: Int?,
         serviceBucket: String,
+        partialPromoted: Boolean,
     ): String {
         val error = errorCode?.toString() ?: "none"
         return "engine=$engine hints=$hintCount readyMs=${ms(readyMs)} beginMs=${ms(beginMs)} " +
             "endToResultsMs=${ms(endToResultsMs)} totalMs=${ms(totalMs)} " +
-            "results=$resultCount error=$error service=$serviceBucket"
+            "results=$resultCount error=$error service=$serviceBucket " +
+            "partialPromoted=$partialPromoted"
     }
 
     private fun ms(value: Long?): String {

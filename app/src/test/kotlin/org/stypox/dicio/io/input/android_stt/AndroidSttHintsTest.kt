@@ -114,10 +114,11 @@ class AndroidSttHintsTest : StringSpec({
             resultCount = 3,
             errorCode = null,
             serviceBucket = "google",
+            partialPromoted = false,
         )
         line shouldBe
             "engine=on-device hints=42 readyMs=180 beginMs=900 endToResultsMs=240 " +
-            "totalMs=2100 results=3 error=none service=google"
+            "totalMs=2100 results=3 error=none service=google partialPromoted=false"
         line.shouldNotContain("play hello")
         line.shouldNotContain("Yesterday")
 
@@ -131,8 +132,10 @@ class AndroidSttHintsTest : StringSpec({
             resultCount = 0,
             errorCode = 2,
             serviceBucket = "other",
+            partialPromoted = true,
         ) shouldBe
-            "engine=online hints=0 readyMs=- beginMs=- endToResultsMs=- totalMs=40 results=0 error=2 service=other"
+            "engine=online hints=0 readyMs=- beginMs=- endToResultsMs=- totalMs=40 " +
+            "results=0 error=2 service=other partialPromoted=true"
     }
 
     "the timing service bucket is only google or other" {

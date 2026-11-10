@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import org.stypox.dicio.R
 import org.stypox.dicio.di.LocaleManager
 import org.stypox.dicio.io.input.InputEvent
+import org.stypox.dicio.io.input.LastPartialFallback
 import org.stypox.dicio.io.input.SttInputDevice
 import org.stypox.dicio.io.input.SttState
 import org.stypox.dicio.io.input.UserFacingInputException
@@ -279,8 +280,13 @@ class AndroidSttInputDevice(
         if (!destroyed) {
             _uiState.value = if (available) SttState.Loaded else unavailableState()
         }
+        if (event != null) {
+            owner.listener(event)
+            if (owner.fallback.promoted) {
+                owner.resultCount = 1
+            }
+        }
         logTiming(owner, errorCode)
-        if (event != null) owner.listener(event)
     }
 
     private fun destroyRecognizer(rec: SpeechRecognizer?) {
@@ -312,6 +318,7 @@ class AndroidSttInputDevice(
                 resultCount = owner.resultCount,
                 errorCode = errorCode,
                 serviceBucket = DicioSttTiming.serviceBucket(owner.servicePackage),
+                partialPromoted = owner.fallback.promoted,
             ),
         )
     }
@@ -353,7 +360,9 @@ class AndroidSttInputDevice(
         onExclusiveMic(using)
     }
 
-    private class Session(val listener: (InputEvent) -> Unit) {
+    private class Session(rawListener: (InputEvent) -> Unit) {
+        val fallback = LastPartialFallback(rawListener)
+        val listener: (InputEvent) -> Unit = fallback
         var engine: String = DicioSttTiming.ENGINE_ONLINE
         var hintCount: Int = 0
         var servicePackage: String? = null
